@@ -1,0 +1,16 @@
+
+references:
+- [OGLDEV] OpenGL for beginners: https://www.youtube.com/watch?v=h2cP6sQYdf0&list=PLA0dXqQjCx0S04ntJKUftl6OaOgsiwHjA
+  - [OGLDEV-Perspective] https://www.youtube.com/watch?v=q5jOLztcvsM
+
+
+# Coordinate systems
+
+- local space
+- world space
+- clip space
+
+
+## Cameras
+
+- view frustum
