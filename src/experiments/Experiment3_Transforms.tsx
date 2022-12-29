@@ -74,7 +74,6 @@ const m4 = {
   },
 };
 
-
 type Mesh = { vertices: Array<Vertex3>, indices: Array<number> };
 type MeshWithBuffers = { mesh: Mesh, vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer };
 
@@ -344,7 +343,7 @@ const renderExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext)
   
   // Clear the canvas + depth buffer
   // https://stackoverflow.com/questions/48693164/depth-buffer-clear-behavior-between-draw-calls
-  gl.clearColor(0.5, 0.5, 0.5, 1.0);
+  gl.clearColor(0.6, 0.6, 0.6, 1.0);
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   

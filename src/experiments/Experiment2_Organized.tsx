@@ -2,7 +2,9 @@
 import * as React from 'react';
 
 /*
-Experiment 2: take the lessons learned from experiment 1 and create a more organized, abstracted version.
+Experiment 2: draw a simple shape (2D triangle) with common utilities abstracted out
+  - Add more organization in the code
+  - Make the shaders slightly more sophisticated with uniforms and attributes
 */
 
 
@@ -199,7 +201,7 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   
   // Clear the canvas + depth buffer
   // https://stackoverflow.com/questions/48693164/depth-buffer-clear-behavior-between-draw-calls
-  gl.clearColor(0.5, 0.5, 0.5, 1.0);
+  gl.clearColor(0.6, 0.6, 0.6, 1.0);
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   

@@ -2,7 +2,10 @@
 import * as React from 'react';
 
 /*
-Experiment 1: draw some output as fast and as simple as possible, no utility libraries, no organization.
+Experiment 1: draw the simplest output (2D triangle) in the most straightforward way.
+  - No utility libraries, just raw WebGL
+  - No code organization
+  - No indexed draws
 */
 
 
@@ -14,17 +17,12 @@ const initWebGlContext = (canvas: HTMLCanvasElement): WebGL2RenderingContext => 
 };
 
 const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) => {
-  // gl.clearColor(0.0, 0.0, 0.0, 1.0); // Set clear color to black, fully opaque
-  // gl.clear(gl.COLOR_BUFFER_BIT); // Clear the color buffer with specified clear color
-  
   // Three 3D vertices in clip space coordinates (making up a triangle)
   const vertices = [
     [-0.5, 0.5, 0.0],
     [-0.5, -0.5, 0.0],
     [0.5, -0.5, 0.0],
   ];
-  
-  const indices = [0, 1, 2];
   
   // Create an empty buffer object to store vertex buffer
   const vertexBuffer = gl.createBuffer();
@@ -37,18 +35,6 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   
   // Unbind the buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  
-  // Create an empty buffer object to store Index buffer
-  const indexBuffer = gl.createBuffer();
-  
-  // Bind appropriate array buffer to it
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  
-  // Pass the vertex data to the buffer
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-  
-  // Unbind the buffer
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
   
   /*================ Shaders ====================*/
   
@@ -72,7 +58,8 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   // Compile the vertex shader
   gl.compileShader(vertShader);
   if (!gl.getShaderParameter(vertShader, gl.COMPILE_STATUS)) {
-    console.error('Failed to compile vertShader', gl.getShaderInfoLog(vertShader));
+    console.error(gl.getShaderInfoLog(vertShader));
+    throw new Error(`Failed to compile vertex shader`);
   }
   
   // Fragment shader source code
@@ -82,7 +69,7 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
     uniform vec4 color;
     out vec4 outColor;
     void main(void) {
-      //outColor = vec4(0.0, 0.0, 0.7, 0.1);
+      //outColor = vec4(0.0, 0.0, 0.7, 0.1); // Hardcoded color
       outColor = color;
     }
   `.trim();
@@ -97,18 +84,18 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   // Compile the fragment shader
   gl.compileShader(fragShader);
   if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
-    console.error('Failed to compile fragShader', gl.getShaderInfoLog(fragShader));
+    console.error(gl.getShaderInfoLog(fragShader));
+    throw new Error(`Failed to compile fragment shader`);
   }
   
-  // Create a shader program object to store
-  // the combined shader program
+  // Create a shader program object to store the combined shader program
   const shaderProgram = gl.createProgram();
   if (shaderProgram === null) { throw new Error(`Failed to create shader program`); }
   
-  // Attach a vertex shader
+  // Attach the vertex shader
   gl.attachShader(shaderProgram, vertShader);
   
-  // Attach a fragment shader
+  // Attach the fragment shader
   gl.attachShader(shaderProgram, fragShader);
   
   // Link both the programs
@@ -128,9 +115,6 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   // Bind vertex buffer object
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   
-  // Bind index buffer object
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  
   // Get the attribute location
   const coord = gl.getAttribLocation(shaderProgram, 'coordinates');
   
@@ -144,7 +128,7 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   
   // Clear the canvas + depth buffer
   // https://stackoverflow.com/questions/48693164/depth-buffer-clear-behavior-between-draw-calls
-  gl.clearColor(0.5, 0.5, 0.5, 1.0);
+  gl.clearColor(0.6, 0.6, 0.6, 1.0);
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
@@ -152,8 +136,7 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   gl.enable(gl.DEPTH_TEST);
   
   // Draw the triangle
-  //console.log('draw', gl, canvas);
-  gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, vertices.length);
 };
 
 export const Experiment1 = () => {
