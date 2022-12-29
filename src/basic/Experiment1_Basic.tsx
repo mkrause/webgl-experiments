@@ -1,6 +1,10 @@
 
 import * as React from 'react';
 
+/*
+Experiment 1: draw some output as fast and as simple as possible, no utility libraries, no organization.
+*/
+
 
 const initWebGlContext = (canvas: HTMLCanvasElement): WebGL2RenderingContext => {
   const gl: null | WebGL2RenderingContext = canvas.getContext('webgl2');

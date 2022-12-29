@@ -1,12 +1,16 @@
 
 import * as React from 'react';
 
+/*
+Experiment 2: take the lessons learned from experiment 1 and create a more organized, abstracted version.
+*/
+
 
 // ---
 // Utilities (reusable)
 // ---
 
-type Vertex3DArray = Array<[number, number, number]>;
+type Vertex3 = [number, number, number];
 
 const webglUtil = {
   compileProgram(
@@ -48,21 +52,38 @@ const webglUtil = {
     }
     
     // Create a shader program object to store the combined shader program
-    const shaderProgram = gl.createProgram();
-    if (shaderProgram === null) { throw new Error(`Failed to create shader program`); }
+    const program = gl.createProgram();
+    if (program === null) { throw new Error(`Failed to create shader program`); }
     
     for (const shader of shaders) {
-      gl.attachShader(shaderProgram, shader);
+      gl.attachShader(program, shader);
     }
     
     // Link the program
-    gl.linkProgram(shaderProgram);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.log(gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
+      throw new Error(`Failed to link shader program`);
+    }
     
-    return shaderProgram;
+    return program;
+  },
+  
+  getUniformLocation(gl: WebGL2RenderingContext, program: WebGLProgram, uniformName: string): WebGLUniformLocation {
+    const uniformLocation = gl.getUniformLocation(program, uniformName);
+    if (uniformLocation === null) { throw new Error(`Unable to locate uniform ${uniformName}`); }
+    return uniformLocation;
+  },
+  
+  getAttributeLocation(gl: WebGL2RenderingContext, program: WebGLProgram, attributeName: string): number {
+    const attributeLocation = gl.getAttribLocation(program, attributeName);
+    if (attributeLocation < 0) { throw new Error(`Unable to locate attribute ${attributeName}`); }
+    return attributeLocation;
   },
   
   // Set up a vertex array buffer (for later use)
-  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Vertex3DArray): WebGLBuffer {
+  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vertex3>): WebGLBuffer {
     const vertexBuffer = gl.createBuffer(); // Create a vertex array buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); // Bind it to `ARRAY_BUFFER`
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices.flat()), gl.STATIC_DRAW);
@@ -82,7 +103,7 @@ const webglUtil = {
 // ---
 
 
-const initWebGl = (canvas: HTMLCanvasElement): WebGL2RenderingContext => {
+const initWebGlContext = (canvas: HTMLCanvasElement): WebGL2RenderingContext => {
   const gl: null | WebGL2RenderingContext = canvas.getContext('webgl2');
   if (gl === null) { throw new Error(`Unable to initialize WebGL`); }
   gl.viewport(0, 0, canvas.width, canvas.height);
@@ -91,8 +112,8 @@ const initWebGl = (canvas: HTMLCanvasElement): WebGL2RenderingContext => {
 
 const createVertexArrayBuffer = (gl: WebGL2RenderingContext) => {
   // Our "model": an array of 3D vertices forming a triangle
-  // These are in local space coordinates. Order must be clockwise for a front-facing face
-  const vertices: Vertex3DArray = [
+  // These are in local space coordinates. Order must be counter-clockwise for a front-facing face
+  const vertices: Array<Vertex3> = [
     [-0.5, 0.5, 0.0],
     [-0.5, -0.5, 0.0],
     [0.5, -0.5, 0.0],
@@ -111,45 +132,65 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   
   const vertexShader = `
     #version 300 es
-    in vec3 coordinates;
+    
+    in vec3 vertex_position;
+    out vec4 vertex_color;
+    
+    const vec4 colors[3] = vec4[3](
+      vec4(1.0, 0.0, 0.0, 1.0),
+      vec4(0.0, 1.0, 0.0, 1.0),
+      vec4(0.0, 0.0, 1.0, 1.0)
+    );
     
     void main(void) {
-      gl_Position = vec4(coordinates, 1.0);
+      gl_Position = vec4(vertex_position, 1.0);
+      vertex_color = colors[gl_VertexID];
     }
   `.trim();
   
   const fragmentShader = `
     #version 300 es
     precision highp float;
+    
     uniform vec4 color;
+    in vec4 vertex_color;
     out vec4 outColor;
+    
     void main(void) {
-      //outColor = vec4(0.0, 0.0, 0.7, 0.1);
-      outColor = color;
+      //outColor = vec4(0.0, 0.0, 0.7, 0.1); // Hardcoded color
+      //outColor = color; // Color from uniform
+      outColor = vertex_color; // Color interpolated from vertices
     }
   `.trim();
   
   const shaderProgram = webglUtil.compileProgram(gl, { vertexShader, fragmentShader });
+  const shaderProgramInfo = {
+    program: shaderProgram,
+    uniforms: {
+      //color: webglUtil.getUniformLocation(gl, shaderProgram, 'color'),
+    },
+    attributes: {
+      vertexPosition: webglUtil.getAttributeLocation(gl, shaderProgram, 'vertex_position'),
+    },
+  };
   
   // Use the combined shader program object
   gl.useProgram(shaderProgram);
   
   
   //
-  // Set up the input (buffer, attributes, uniforms)
+  // Set up the input (buffer, uniforms, attributes)
   //
   
   // Bind the vertex array buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   
-  // Specify the uniforms
-  const attributeColor = gl.getUniformLocation(shaderProgram, 'color');
-  gl.uniform4f(attributeColor, Math.random(), Math.random(), Math.random(), 1);
+  // Set the uniform values
+  //gl.uniform4f(shaderProgramInfo.uniforms.color, Math.random(), Math.random(), Math.random(), 1);
   
   // Specify the attributes (type, layout, etc.)
-  const attributeCoordinates = gl.getAttribLocation(shaderProgram, 'coordinates');
-  gl.vertexAttribPointer(attributeCoordinates, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(attributeCoordinates);
+  gl.vertexAttribPointer(shaderProgramInfo.attributes.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(shaderProgramInfo.attributes.vertexPosition);
   
   
   //
@@ -166,7 +207,6 @@ const renderTriangle = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) =
   gl.enable(gl.DEPTH_TEST);
   
   // Draw the triangle
-  //console.log('draw', gl, canvas);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 };
 
@@ -184,7 +224,7 @@ export const Experiment2 = () => {
   React.useLayoutEffect(() => {
     if (canvasRef.current) {
       if (!glContext.current) {
-        glContext.current = initWebGl(canvasRef.current);
+        glContext.current = initWebGlContext(canvasRef.current);
       }
       render(canvasRef.current, glContext.current);
     }

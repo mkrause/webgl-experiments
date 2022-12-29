@@ -6,6 +6,9 @@ references:
 
 # Coordinate systems
 
+homogeneous coordinates:
+  - https://youtu.be/1aE7fLa_tqc?list=PLA0dXqQjCx0S04ntJKUftl6OaOgsiwHjA&t=596
+
 - local space
 - world space
 - clip space
