@@ -365,10 +365,6 @@ const webglResourceUtil = {
 // Application
 // ---
 
-// type Resource = {
-//   mesh: Mesh,
-//   transform: Matrix4,
-// };
 type AppContext = {
   resource: ResourceCompiled,
 };
@@ -447,11 +443,6 @@ const renderExperiment = (
   const cube = app.resource.resource;
   
   webglResourceUtil.useResource(gl, app.resource);
-  
-  
-  //
-  // Set up the input (buffer, uniforms, attributes)
-  //
   
   // Override transform uniform
   {
