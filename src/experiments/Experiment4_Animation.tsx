@@ -3,7 +3,9 @@ import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
 
 /*
-Experiment 4
+Experiment 4: add animation
+  - Rework the code to split out the initial setup (compilation, buffers, etc.) from the render function
+  - Add an animation loop using requestAnimationFrame
 */
 
 
@@ -141,7 +143,6 @@ const webglUtil = {
     if (uniformLocation === null) { throw new Error(`Unable to locate uniform "${uniformName}"`); }
     return uniformLocation;
   },
-  
   getAttributeLocation(gl: WebGL2RenderingContext, program: WebGLProgram, attributeName: string): number {
     const attributeLocation = gl.getAttribLocation(program, attributeName);
     if (attributeLocation < 0) { throw new Error(`Unable to locate attribute "${attributeName}"`); }

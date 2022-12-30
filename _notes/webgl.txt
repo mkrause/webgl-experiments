@@ -1,6 +1,15 @@
 
 # WebGL
 
+libraries/frameworks:
+  - twgl
+  - three
+  - https://github.com/regl-project/regl (declarative/functional wrapper around WebGL)
+
+utilities:
+  - https://github.com/glslify/glslify
+  - gl-matrix
+
 https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial
 https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL
 
