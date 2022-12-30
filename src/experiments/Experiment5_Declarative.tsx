@@ -3,7 +3,7 @@ import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
 
 /*
-Experiment 4: make the code a bit more declarative with a "resource" abstraction (similar to regl)
+Experiment 5: make the code a bit more declarative with a "resource" abstraction (similar to regl)
 */
 
 
@@ -288,6 +288,76 @@ const webglResourceUtil = {
       )),
     };
   },
+  
+  useResource(gl: WebGL2RenderingContext, resourceCompiled: ResourceCompiled): void {
+    const program = resourceCompiled.program;
+    const uniformLocations = resourceCompiled.uniformLocations;
+    const attributeLocations = resourceCompiled.attributeLocations;
+    const resource = resourceCompiled.resource;
+    
+    gl.useProgram(program);
+    
+    // Set uniform values
+    for (const [uniformName, uniform] of Object.entries(resource.uniforms)) {
+      const uniformLocation = uniformLocations[uniformName];
+      if (typeof uniformLocation === 'undefined') { throw new Error(`Missing uniform "${uniformName}"`); }
+      switch (uniform.type) {
+        case 'uniformMatrix4fv':
+          gl.uniformMatrix4fv(uniformLocation, uniform.transpose ?? true, uniform.data);
+          break;
+        default: throw new Error(`Unknown uniform type "${uniform.type}"`);
+      }
+    }
+    
+    /*
+    for (const [bufferName, bufferSpec] of Object.entries(app.resource.buffers)) {
+      switch (bufferSpec.type) {
+        case 'arrayBuffer':
+          gl.bindBuffer(gl.ARRAY_BUFFER, bufferSpec.buffer);
+          gl.vertexAttribPointer(attributes.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+          gl.enableVertexAttribArray(attributes.vertexPosition);
+          break;
+        default: throw new Error(`Unknown buffer type ${bufferSpec.type}`);
+      }
+    }
+    */
+    
+    for (const [attributeName, attributeSpec] of Object.entries(resource.attributes)) {
+      const attributeLocation: WebGLAttributeLocation = attributeLocations[attributeName];
+      if (typeof attributeLocation === 'undefined') { throw new Error(`Missing attribute "${attributeName}"`); }
+      const bufferFromSource = (source: AttributeSource): ResourceCompiledBuffer => {
+        switch (source.type) {
+          case 'position': return resourceCompiled.buffers.position;
+          case 'buffer': return resourceCompiled.buffers[source.buffer];
+          default: throw new Error(`Unknown attribute source type ${(source as AttributeSource).type}`);
+        }
+      };
+      const bindBuffer = (buffer: ResourceCompiledBuffer) => {
+        switch (buffer.type) {
+          case 'arrayBuffer': gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer); break;
+          case 'indexBuffer': gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.buffer); break;
+          default: throw new Error(`Unknown buffer type ${(buffer as ResourceCompiledBuffer).type}`);
+        }
+      };
+      switch (attributeSpec.type) {
+        case 'vec3': {
+          const buffer: ResourceCompiledBuffer = bufferFromSource(attributeSpec.source);
+          bindBuffer(buffer);
+          gl.vertexAttribPointer(attributeLocation, 3, gl.FLOAT, false, 0, 0);
+          gl.enableVertexAttribArray(attributeLocation);
+          break;
+        }
+        case 'vec4': {
+          const buffer: ResourceCompiledBuffer = bufferFromSource(attributeSpec.source);
+          bindBuffer(buffer);
+          gl.vertexAttribPointer(attributeLocation, 4, gl.FLOAT, false, 0, 0);
+          gl.enableVertexAttribArray(attributeLocation);
+          break;
+        }
+        default: throw new Error(`Unknown attribute type ${(attributeSpec as AttributeDescriptor).type}`);
+      }
+    }
+  },
 };
 
 
@@ -366,9 +436,7 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
   };
 };
 
-// type Scene = {
-//   root: Resource,
-// };
+
 type TimingInfo = { time: number, delta: number };
 const renderExperiment = (
   canvas: HTMLCanvasElement,
@@ -376,29 +444,16 @@ const renderExperiment = (
   app: AppContext,
   timing: TimingInfo,
 ) => {
-  const program = app.resource.program;
-  const uniforms = app.resource.uniformLocations;
-  const attributes = app.resource.attributeLocations;
   const cube = app.resource.resource;
   
-  gl.useProgram(program);
+  webglResourceUtil.useResource(gl, app.resource);
   
   
   //
   // Set up the input (buffer, uniforms, attributes)
   //
   
-  // Set uniform values
-  for (const [uniformName, uniform] of Object.entries(cube.uniforms)) {
-    switch (uniform.type) {
-      case 'uniformMatrix4fv':
-        gl.uniformMatrix4fv(uniforms[uniformName], uniform.transpose ?? false, uniform.data);
-        break;
-      default: throw new Error(`Unknown uniform type "${uniform.type}"`);
-    }
-  }
-  
-  // Override transform
+  // Override transform uniform
   {
     const scaleMatrix: Matrix4 = [
       0.5, 0.0, 0.0, 0.0,
@@ -446,57 +501,9 @@ const renderExperiment = (
       aspectRatioMatrix,
     );
     
-    gl.uniformMatrix4fv(uniforms.transformation, true, transformationMatrix);
+    gl.uniformMatrix4fv(app.resource.uniformLocations.transformation, true, transformationMatrix);
   };
   
-  /*
-  for (const [bufferName, bufferSpec] of Object.entries(app.resource.buffers)) {
-    switch (bufferSpec.type) {
-      case 'arrayBuffer':
-        gl.bindBuffer(gl.ARRAY_BUFFER, bufferSpec.buffer);
-        gl.vertexAttribPointer(attributes.vertexPosition, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(attributes.vertexPosition);
-        break;
-      default: throw new Error(`Unknown buffer type ${bufferSpec.type}`);
-    }
-  }
-  */
-  
-  for (const [attributeName, attributeSpec] of Object.entries(app.resource.resource.attributes)) {
-    const attributeLocation: WebGLAttributeLocation = attributes[attributeName];
-    if (typeof attributeLocation !== 'number') { throw new Error(`Missing attribute "${attributeName}"`); }
-    const bufferFromSource = (source: AttributeSource): ResourceCompiledBuffer => {
-      switch (source.type) {
-        case 'position': return app.resource.buffers.position;
-        case 'buffer': return app.resource.buffers[source.buffer];
-        default: throw new Error(`Unknown attribute source type ${(source as AttributeSource).type}`);
-      }
-    };
-    const bindBuffer = (buffer: ResourceCompiledBuffer) => {
-      switch (buffer.type) {
-        case 'arrayBuffer': gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer); break;
-        case 'indexBuffer': gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.buffer); break;
-        default: throw new Error(`Unknown buffer type ${(buffer as ResourceCompiledBuffer).type}`);
-      }
-    };
-    switch (attributeSpec.type) {
-      case 'vec3': {
-        const buffer: ResourceCompiledBuffer = bufferFromSource(attributeSpec.source);
-        bindBuffer(buffer);
-        gl.vertexAttribPointer(attributeLocation, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(attributeLocation);
-        break;
-      }
-      case 'vec4': {
-        const buffer: ResourceCompiledBuffer = bufferFromSource(attributeSpec.source);
-        bindBuffer(buffer);
-        gl.vertexAttribPointer(attributeLocation, 4, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(attributeLocation);
-        break;
-      }
-      default: throw new Error(`Unknown attribute type ${(attributeSpec as AttributeDescriptor).type}`);
-    }
-  }
   
   //
   // Render
