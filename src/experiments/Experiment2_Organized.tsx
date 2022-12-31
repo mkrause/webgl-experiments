@@ -12,7 +12,7 @@ Experiment 2: draw a simple shape (2D triangle) with common utilities abstracted
 // Utilities (reusable)
 // ---
 
-type Vertex3 = [number, number, number];
+type Vector3 = [number, number, number];
 
 const webglUtil = {
   compileProgram(
@@ -85,7 +85,7 @@ const webglUtil = {
   },
   
   // Set up a vertex array buffer (for later use)
-  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vertex3>): WebGLBuffer {
+  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vector3>): WebGLBuffer {
     const vertexBuffer = gl.createBuffer(); // Create a vertex array buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); // Bind it to `ARRAY_BUFFER`
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices.flat()), gl.STATIC_DRAW);
@@ -115,7 +115,7 @@ const initWebGlContext = (canvas: HTMLCanvasElement): WebGL2RenderingContext => 
 const createVertexArrayBuffer = (gl: WebGL2RenderingContext) => {
   // Our "model": an array of 3D vertices forming a triangle
   // These are in local space coordinates. Order must be counter-clockwise for a front-facing face
-  const vertices: Array<Vertex3> = [
+  const vertices: Array<Vector3> = [
     [-0.5, 0.5, 0.0],
     [-0.5, -0.5, 0.0],
     [0.5, -0.5, 0.0],

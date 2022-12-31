@@ -10,7 +10,7 @@ Experiment 3: go to 3D and transformation matrices
 // Utilities (reusable)
 // ---
 
-type Vertex3 = [number, number, number];
+type Vector3 = [number, number, number];
 type Matrix4 = [
   number, number, number, number,
   number, number, number, number,
@@ -74,7 +74,7 @@ const m4 = {
   },
 };
 
-type Mesh = { vertices: Array<Vertex3>, indices: Array<number> };
+type Mesh = { vertices: Array<Vector3>, indices: Array<number> };
 type MeshWithBuffers = { mesh: Mesh, vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer };
 
 const webglUtil = {
@@ -148,7 +148,7 @@ const webglUtil = {
   },
   
   // Set up a vertex array buffer (for later use)
-  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vertex3>): WebGLBuffer {
+  createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vector3>): WebGLBuffer {
     const vertexBuffer = gl.createBuffer(); // Create a vertex array buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); // Bind it to the global `ARRAY_BUFFER`
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices.flat()), gl.STATIC_DRAW);
@@ -191,7 +191,7 @@ const webglUtil = {
 const createCubeMesh = (): Mesh => {
   // Our "model": an array of 3D vertices forming a unit cube
   // These are in local space coordinates. Order must be counter-clockwise for a front-facing face
-  const vertices: Array<Vertex3> = [
+  const vertices: Array<Vector3> = [
     [-1.0, -1.0, +1.0], [+1.0, -1.0, +1.0], [+1.0, +1.0, +1.0], [-1.0, +1.0, +1.0], // Front face
     [-1.0, -1.0, -1.0], [-1.0, +1.0, -1.0], [+1.0, +1.0, -1.0], [+1.0, -1.0, -1.0], // Back face
     [-1.0, +1.0, -1.0], [-1.0, +1.0, +1.0], [+1.0, +1.0, +1.0], [+1.0, +1.0, -1.0], // Top face

@@ -1,87 +1,17 @@
 
+import { type Vector3, type Vector4, type Matrix4, m4 } from '../util/matrix';
+
 import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
 
 /*
-Experiment 5: make the code a bit more declarative with a "resource" abstraction (similar to regl)
+Experiment 6: add perspective
 */
 
 
 // ---
 // Utilities (reusable)
 // ---
-
-type Vector3 = [number, number, number];
-type Matrix4 = [
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-];
-
-const m4 = {
-  identity(): Matrix4 {
-    return [
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 0.0,
-    ];
-  },
-  multiply(a: Matrix4, b: Matrix4): Matrix4 {
-    const b00 = b[0 * 4 + 0];
-    const b01 = b[0 * 4 + 1];
-    const b02 = b[0 * 4 + 2];
-    const b03 = b[0 * 4 + 3];
-    const b10 = b[1 * 4 + 0];
-    const b11 = b[1 * 4 + 1];
-    const b12 = b[1 * 4 + 2];
-    const b13 = b[1 * 4 + 3];
-    const b20 = b[2 * 4 + 0];
-    const b21 = b[2 * 4 + 1];
-    const b22 = b[2 * 4 + 2];
-    const b23 = b[2 * 4 + 3];
-    const b30 = b[3 * 4 + 0];
-    const b31 = b[3 * 4 + 1];
-    const b32 = b[3 * 4 + 2];
-    const b33 = b[3 * 4 + 3];
-    const a00 = a[0 * 4 + 0];
-    const a01 = a[0 * 4 + 1];
-    const a02 = a[0 * 4 + 2];
-    const a03 = a[0 * 4 + 3];
-    const a10 = a[1 * 4 + 0];
-    const a11 = a[1 * 4 + 1];
-    const a12 = a[1 * 4 + 2];
-    const a13 = a[1 * 4 + 3];
-    const a20 = a[2 * 4 + 0];
-    const a21 = a[2 * 4 + 1];
-    const a22 = a[2 * 4 + 2];
-    const a23 = a[2 * 4 + 3];
-    const a30 = a[3 * 4 + 0];
-    const a31 = a[3 * 4 + 1];
-    const a32 = a[3 * 4 + 2];
-    const a33 = a[3 * 4 + 3];
-    
-    return [
-      b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
-      b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
-      b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
-      b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
-      b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30,
-      b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31,
-      b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32,
-      b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33,
-      b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30,
-      b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31,
-      b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32,
-      b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33,
-      b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
-      b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
-      b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
-      b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33,
-    ];
-  },
-};
 
 const webglUtil = {
   initializeRenderingContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
@@ -303,7 +233,7 @@ const webglResourceUtil = {
       if (typeof uniformLocation === 'undefined') { throw new Error(`Missing uniform "${uniformName}"`); }
       switch (uniform.type) {
         case 'uniformMatrix4fv':
-          gl.uniformMatrix4fv(uniformLocation, uniform.transpose ?? true, uniform.data);
+          gl.uniformMatrix4fv(uniformLocation, uniform.transpose ?? true, uniform.data.flat());
           break;
         default: throw new Error(`Unknown uniform type "${uniform.type}"`);
       }
@@ -446,53 +376,24 @@ const renderExperiment = (
   
   // Override transform uniform
   {
-    const scaleMatrix: Matrix4 = [
-      0.5, 0.0, 0.0, 0.0,
-      0.0, 0.5, 0.0, 0.0,
-      0.0, 0.0, 0.5, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    
     const angleX = timing.time / 2000;
     const angleY = timing.time / 1000;
     const angleZ = timing.time / 2000;
-    const rotationMatrixX: Matrix4 = [
-      1.0, 0.0, 0.0, 0.0,
-      0.0, Math.cos(angleX), Math.sin(angleX), 0.0,
-      0.0, -1 * Math.sin(angleX), Math.cos(angleX), 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const rotationMatrixY: Matrix4 = [
-      Math.cos(angleY), 0.0, -1 * Math.sin(angleY), 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      Math.sin(angleY), 0.0, Math.cos(angleY), 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const rotationMatrixZ: Matrix4 = [
-      Math.cos(angleZ), -1 * Math.sin(angleZ), 0.0, 0.0,
-      Math.sin(angleZ), Math.cos(angleZ), 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const aspectRatioMatrix: Matrix4 = [
-      canvas.height / canvas.width, 0.0, 0.0, 0.0, // Compensate for the aspect ratio
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
+
+    const aspectRatioMatrix: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]);
     
     const transformationMatrix = m4.multiply(
       m4.multiply(
-        rotationMatrixZ,
+        m4.rotationZ(angleZ),
         m4.multiply(
-          rotationMatrixY,
-          m4.multiply(rotationMatrixX, scaleMatrix),
+          m4.rotationY(angleY),
+          m4.multiply(m4.rotationX(angleX), m4.scaling([0.5, 0.5, 0.5])),
         ),
       ),
       aspectRatioMatrix,
     );
     
-    gl.uniformMatrix4fv(app.resource.uniformLocations.transformation, true, transformationMatrix);
+    gl.uniformMatrix4fv(app.resource.uniformLocations.transformation, false, transformationMatrix.flat());
   };
   
   
@@ -513,7 +414,7 @@ const renderExperiment = (
   gl.drawElements(gl.TRIANGLES, cube.mesh.indices.length, gl.UNSIGNED_SHORT, 0);
 };
 
-export const Experiment5 = () => {
+export const Experiment6 = () => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [glContext, setGlContext] = React.useState<null | WebGL2RenderingContext>(null);
   const [appContext, setAppContext] = React.useState<null | AppContext>(null);

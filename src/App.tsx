@@ -7,6 +7,7 @@ import { Experiment2 } from './experiments/Experiment2_Organized';
 import { Experiment3 } from './experiments/Experiment3_Transforms';
 import { Experiment4 } from './experiments/Experiment4_Animation';
 import { Experiment5 } from './experiments/Experiment5_Declarative';
+import { Experiment6 } from './experiments/Experiment6_Perspective';
 
 import './App.css';
 
@@ -20,6 +21,7 @@ export const App = () => {
       case 3: return <Experiment3/>;
       case 4: return <Experiment4/>;
       case 5: return <Experiment5/>;
+      case 6: return <Experiment6/>;
       default: return 'Unknown experiment';
     }
   };
