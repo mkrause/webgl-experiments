@@ -413,6 +413,10 @@ const renderExperiment = (
   };
   
   const worldToCamera = () => {
+    return m4.identity(); // TODO: currently the camera space is assumed to equal world space (camera fixed at origin)
+  };
+  
+  const cameraToClip = () => {
     // const fov = 1;
     // const aspect = canvas.clientWidth / canvas.clientHeight;
     // const near = 1;
@@ -420,21 +424,23 @@ const renderExperiment = (
     //const perspectiveTransform = m4.perspective(fov, aspect, near, far);
     //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
     //return perspectiveTransform;
+    
     // Independent parameters
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    const fov = 1; // Horizontal field of view (in radians)
+    const fov = 0.6 * (0.5 * Math.PI); // Horizontal field of view (in radians)
     const near = 1;
     
     // Derivations
     const nearWidth = 2 * (Math.tan(fov) * near);
     const right = nearWidth / 2;
-    const top = right / aspect;
+    const top = right / aspect; // Derive the frustum height from the width + aspect ratio
     return m4.orthographicProjection(-right, right, -top, top, near, 1000);
   };
   
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, 20]), worldToCamera()));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, 20]), worldToCamera()));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, 20]), worldToCamera()));
+  const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, 20]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, 20]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, 20]), worldToClip));
 };
 
 export const Experiment6 = () => {
