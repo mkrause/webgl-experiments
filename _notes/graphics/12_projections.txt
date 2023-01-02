@@ -1,8 +1,11 @@
 
-# Projections
-
 > implementations:
   - https://github.com/toji/gl-matrix/blob/master/src/mat4.js#L1539 (perspectiveNO)
+
+
+# Projections
+
+https://en.wikipedia.org/wiki/3D_projection
 
 
 ## Motivation
@@ -93,19 +96,24 @@ orthographic camera system:
       - vertical field of view angle `fov` in radians (the horizontal can be derived from the viewport aspect ratio)
       - distance along the z-axis to the origin of the view frustum (clip space) `d`
   > we will first need to translate to clip space origin:
-    T = ⎡1 0  0 -(left+right)/2⎤ (`(left+right)/2` is the horizontal midpoint of the frustum)
-        ⎢0 1  0 -(top+bottom)/2⎥
-        ⎢0 0 -1 -(far+near)/2  ⎥ (XX do we need the -1 scale here?)
-        ⎣0 0  0  1             ⎦
+    T = ⎡1 0 0 -(left+right)/2⎤ (`(left+right)/2` is the horizontal midpoint of the frustum)
+        ⎢0 1 0 -(top+bottom)/2⎥
+        ⎢0 0 1 -(far+near)/2  ⎥
+        ⎣0 0 0 1              ⎦
   > and then scale to get a normalized (-1, 1) cube:
     S = ⎡2/w  0   0   0⎤ (`w` here is the frustum width, i.e. `right - left`, and `2/w` is `1/(w/2)`)
         ⎢ 0  2/h  0   0⎥ (i.e. we scale by the inverse half the width/height/depth)
         ⎢ 0   0   2/d 0⎥
         ⎣ 0   0   0   1⎦
   > putting it together, we get the transform P = ST (see [w/Orthographic_projection] for the details)
+  > note: we may also want to compensate for left-handed vs right-handed coordinate systems here
+    > OpenGL clip space is a *left-handed coordinate system*, meaning the positive z-axis points away from the viewer
+      > see: https://stackoverflow.com/questions/4124041/is-opengl-coordinate-system-left-handed-or-right-handed
+    > usually however in math and world/local space, we want a right-handed coordinate system (+z towards the viewer)
+    > ([w/Orthographic_projection] includes a -1 scaling factor for z here in the translation, for this reason)
 
 
-## Projective matrix transformations
+## Perspective projection
 
 https://en.wikipedia.org/wiki/Pinhole_camera_model
 https://en.wikipedia.org/wiki/Camera_matrix

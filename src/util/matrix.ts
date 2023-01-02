@@ -17,8 +17,14 @@ export type Matrix4 = [
 ];
 
 export const v4 = {
-  dot(a: Vector4, b: Vector4): number {
-    return a.reduce((acc, a, i) => acc + a * b[i], 0);
+  zero(): Vector4 {
+    return [0, 0, 0, 1];
+  },
+  dot(v: Vector4, w: Vector4): number {
+    return v.reduce((acc, vEntry, i) => acc + vEntry * w[i], 0);
+  },
+  scale(s: number, v: Vector4): Vector4 {
+    return v.map(x => x * s) as Vector4;
   },
 };
 
@@ -70,6 +76,16 @@ export const m4 = {
       (product, matrix) => m4.multiply(matrix, product),
       m4.identity(),
     );
+  },
+  // Multiplication of a matrix and a 3D vector in homogeneous coordinates. Will return another `Vector4` in
+  // homogeneous coordinates, dividing by the `w` component (perspective divide) if necessary.
+  multiplyVector(m: Matrix4, v: Vector4): Vector4 {
+    const product = v4.zero();
+    for (const i in v) {
+      product[i] = v4.dot(m[i], v);
+    }
+    // Divide by the `w` component to get a normalized vector in homogeneous coordinates (i.e. w = 1)
+    return v4.scale(1 / product[3], product);
   },
   
   //
@@ -125,20 +141,21 @@ export const m4 = {
     ];
   },
   
-  // Generate an orthographic projection matrix
+  // Generate an orthographic projection matrix, based on explicit frustum coordinates.
   // See also:
+  // - `glFrustum` https://registry.khronos.org/OpenGL-Refpages/gl2.1/xhtml/glFrustum.xml
   // - https://en.wikipedia.org/wiki/Orthographic_projection
   // - https://github.com/toji/gl-matrix/blob/master/src/mat4.js#L1664
-  orthographicProjection(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
-    const w = right - left; // Frustum width
-    const h = top - bottom; // Frustum height
-    const d = far - near; // Frustum depth
+  orthographicFrustum(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
+    const w = Math.abs(right - left); // Frustum width
+    const h = Math.abs(top - bottom); // Frustum height
+    const d = Math.abs(far - near); // Frustum depth
     
     // Translation from camera space origin to clip space origin
     const translation = m4.translation([
       -1 * (left + right) / 2, // `(left + right) / 2` is the horizontal midpoint of the frustum
       -1 * (bottom + top) / 2,
-      -1 * (far + near) / 2,
+      -1 * (near + far) / 2,
     ]);
     
     // Scaling to (-1, 1) clip space range (normalized device coordinates)
@@ -149,6 +166,10 @@ export const m4 = {
     ]);
     
     return m4.multiplyPiped(translation, scaling);
+  },
+  
+  orthographicProjection() {
+    
   },
   
   perspective(fieldOfViewInRadians: number, aspect: number, near: number, far: number): Matrix4 {

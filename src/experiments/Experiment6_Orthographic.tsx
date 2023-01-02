@@ -8,6 +8,7 @@ import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/react
 Experiment 6: add a virtual camera system, with orthographic projection.
   - Reorganize the code to allow drawing multiple objects
   - Add a virtual camera (no world space to camera space transform yet)
+  - Use right-handed coordindate system for world space, and map to the left-handed coordinate system for clip space
 */
 
 
@@ -72,7 +73,7 @@ const webglUtil = {
     // Link the program
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.log(gl.getProgramInfoLog(program));
+      console.error(gl.getProgramInfoLog(program));
       gl.deleteProgram(program);
       throw new Error(`Failed to link shader program`);
     }
@@ -133,8 +134,8 @@ type Mesh = { vertices: Array<Vector3>, indices: Array<number> };
 
 const Geometry = {
   cube(): Mesh {
-    // An array of 3D vertices forming a unit cube
-    // These are in local space coordinates. Counterclockwise order is front-facing.
+    // An array of 3D vertices forming a unit cube.
+    // This assumes a right-handed coordinate system (positive z-axis extending towards the viewer).
     const vertices: Array<Vector3> = [
       [-1.0, -1.0, +1.0], [+1.0, -1.0, +1.0], [+1.0, +1.0, +1.0], [-1.0, +1.0, +1.0], // Front face
       [-1.0, -1.0, -1.0], [-1.0, +1.0, -1.0], [+1.0, +1.0, -1.0], [+1.0, -1.0, -1.0], // Back face
@@ -144,13 +145,14 @@ const Geometry = {
       [-1.0, -1.0, -1.0], [-1.0, -1.0, +1.0], [-1.0, +1.0, +1.0], [-1.0, +1.0, -1.0], // Left face
     ];
     
+    // Specify the array indices, where triangle vertices are ordered in counter-clockwise order
     const indices: Array<number> = [
-      0, 1, 2, 0, 2, 3, // Front
-      4, 5, 6, 4, 6, 7, // Back
-      8, 9, 10, 8, 10, 11, // Top
-      12, 13, 14, 12, 14, 15, // Bottom
-      16, 17, 18, 16, 18, 19, // Right
-      20, 21, 22, 20, 22, 23, // Left
+      0, 1, 2, 0, 2, 3, // Front quad
+      4, 5, 6, 4, 6, 7, // Back quad
+      8, 9, 10, 8, 10, 11, // Top quad
+      12, 13, 14, 12, 14, 15, // Bottom quad
+      16, 17, 18, 16, 18, 19, // Right quad
+      20, 21, 22, 20, 22, 23, // Left quad
     ];
     
     return { vertices, indices };
@@ -331,8 +333,6 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       out vec4 color;
       
       void main(void) {
-        float fov = 1.0;
-        //gl_Position = transformation * vec4(vertex_position, 1.0 + vertex_position.z / fov);
         gl_Position = transformation * vec4(vertex_position, 1.0);
         color = vertex_color;
       }
@@ -390,7 +390,10 @@ const renderExperiment = (
   
   // Enable depth testing and culling
   gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
   gl.enable(gl.CULL_FACE);
+  gl.frontFace(gl.CCW);
+  gl.cullFace(gl.BACK);
   
   
   const cubeResource = app.resource;
@@ -398,9 +401,10 @@ const renderExperiment = (
   webglResourceUtil.useResource(gl, app.resource);
   
   const localToWorld = (position: Vector3): Matrix4 => {
-    const angleX = -1 * timing.time / 2000; // -1 factor for clockwise rotation
-    const angleY = -1 * timing.time / 1000;
-    const angleZ = -1 * timing.time / 2000;
+    const dir = -1; // +1 for counterclockwise, -1 for clockwise
+    const angleX = dir * timing.time / 2000;
+    const angleY = dir * timing.time / 1000;
+    const angleZ = dir * timing.time / 2000;
     
     // Map from the local model space to the world space (i.e. "place" the model in the world)
     return m4.multiplyPiped(
@@ -427,20 +431,28 @@ const renderExperiment = (
     
     // Independent parameters
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    const fov = 0.6 * (0.5 * Math.PI); // Horizontal field of view (in radians)
-    const near = 1;
+    const fov = 0.8 * (0.5 * Math.PI); // Vertical field of view (in radians)
+    const near = -1.5;
     
     // Derivations
-    const nearWidth = 2 * (Math.tan(fov) * near);
-    const right = nearWidth / 2;
-    const top = right / aspect; // Derive the frustum height from the width + aspect ratio
-    return m4.orthographicProjection(-right, right, -top, top, near, 1000);
+    const nearHeight = 2 * (Math.tan(fov / 2) * near);
+    const top = nearHeight / 2;
+    const right = top * aspect; // Derive the frustum height from the width + aspect ratio
+    const projection = m4.orthographicFrustum(-right, right, -top, top, near, -1000);
+    
+    // Note: we use a right-handed coordinate system (positive z-axis towards the viewer), but OpenGL clip space is a
+    // left-handed system (z-axis away from the viewer), so we need to compensate by flipping the z-axis for clip space.
+    return m4.multiplyPiped(projection, m4.scaling([1, 1, -1]));
   };
   
   const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, 20]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, 20]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, 20]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip)); // Further back along Z
+  
+  // console.log(-30, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -30]), worldToClip), [0, 0, 0, 1]));
+  // console.log(-60, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip), [0, 0, 0, 1]));
 };
 
 export const Experiment6 = () => {
