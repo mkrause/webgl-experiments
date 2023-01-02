@@ -422,7 +422,7 @@ const renderExperiment = (
     //return perspectiveTransform;
     // Independent parameters
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    const fov = 0.5; // Horizontal field of view (in radians)
+    const fov = 1; // Horizontal field of view (in radians)
     const near = 1;
     
     // Derivations
@@ -432,9 +432,9 @@ const renderExperiment = (
     return m4.orthographicProjection(-right, right, -top, top, near, 1000);
   };
   
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.5, 0.4, 20]), worldToCamera()));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.5, 0.4, 20]), worldToCamera()));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.4, 20]), worldToCamera()));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, 20]), worldToCamera()));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, 20]), worldToCamera()));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, 20]), worldToCamera()));
 };
 
 export const Experiment6 = () => {
