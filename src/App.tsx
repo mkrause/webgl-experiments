@@ -7,7 +7,7 @@ import { Experiment2 } from './experiments/Experiment2_Organized';
 import { Experiment3 } from './experiments/Experiment3_Transforms';
 import { Experiment4 } from './experiments/Experiment4_Animation';
 import { Experiment5 } from './experiments/Experiment5_Declarative';
-import { Experiment6 } from './experiments/Experiment6_Perspective';
+import { Experiment6 } from './experiments/Experiment6_Orthographic';
 
 import './App.css';
 

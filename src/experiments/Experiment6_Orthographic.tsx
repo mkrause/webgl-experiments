@@ -5,7 +5,9 @@ import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
 
 /*
-Experiment 6: add perspective
+Experiment 6: add a virtual camera system, with orthographic projection.
+  - Reorganize the code to allow drawing multiple objects
+  - Add a virtual camera (no world space to camera space transform yet)
 */
 
 
@@ -100,6 +102,7 @@ const webglUtil = {
   },
   // Set up a vertex array buffer (for later use)
   createVertexBuffer(gl: WebGL2RenderingContext, vertices: Array<Vector3>): WebGLBuffer {
+    // const vertexBuffer = gl.createVertexArray(); // FIXME
     const vertexBuffer = gl.createBuffer(); // Create a vertex array buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer); // Bind it to the global `ARRAY_BUFFER`
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices.flat()), gl.STATIC_DRAW);
@@ -328,6 +331,8 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       out vec4 color;
       
       void main(void) {
+        float fov = 1.0;
+        //gl_Position = transformation * vec4(vertex_position, 1.0 + vertex_position.z / fov);
         gl_Position = transformation * vec4(vertex_position, 1.0);
         color = vertex_color;
       }
@@ -362,6 +367,11 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
   };
 };
 
+const renderCube = (gl: WebGL2RenderingContext, cube: ResourceCompiled, transform: Matrix4): void => {
+  webglResourceUtil.useResource(gl, cube);
+  gl.uniformMatrix4fv(cube.uniformLocations.transformation, true, transform.flat());
+  gl.drawElements(gl.TRIANGLES, cube.resource.mesh.indices.length, gl.UNSIGNED_SHORT, 0);
+};
 
 type TimingInfo = { time: number, delta: number };
 const renderExperiment = (
@@ -370,36 +380,7 @@ const renderExperiment = (
   app: AppContext,
   timing: TimingInfo,
 ) => {
-  const cube = app.resource.resource;
-  
-  webglResourceUtil.useResource(gl, app.resource);
-  
-  // Override transform uniform
-  {
-    const angleX = timing.time / 2000;
-    const angleY = timing.time / 1000;
-    const angleZ = timing.time / 2000;
-
-    const aspectRatioMatrix: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]);
-    
-    const transformationMatrix = m4.multiply(
-      m4.multiply(
-        m4.rotationZ(angleZ),
-        m4.multiply(
-          m4.rotationY(angleY),
-          m4.multiply(m4.rotationX(angleX), m4.scaling([0.5, 0.5, 0.5])),
-        ),
-      ),
-      aspectRatioMatrix,
-    );
-    
-    gl.uniformMatrix4fv(app.resource.uniformLocations.transformation, false, transformationMatrix.flat());
-  };
-  
-  
-  //
-  // Render
-  //
+  gl.viewport(0, 0, canvas.width, canvas.height);
   
   // Clear the canvas + depth buffer
   // https://stackoverflow.com/questions/48693164/depth-buffer-clear-behavior-between-draw-calls
@@ -407,11 +388,53 @@ const renderExperiment = (
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-  // Enable the depth test
+  // Enable depth testing and culling
   gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
   
-  // Draw the triangle
-  gl.drawElements(gl.TRIANGLES, cube.mesh.indices.length, gl.UNSIGNED_SHORT, 0);
+  
+  const cubeResource = app.resource;
+  
+  webglResourceUtil.useResource(gl, app.resource);
+  
+  const localToWorld = (position: Vector3): Matrix4 => {
+    const angleX = -1 * timing.time / 2000; // -1 factor for clockwise rotation
+    const angleY = -1 * timing.time / 1000;
+    const angleZ = -1 * timing.time / 2000;
+    
+    // Map from the local model space to the world space (i.e. "place" the model in the world)
+    return m4.multiplyPiped(
+      m4.scaling([0.3, 0.3, 0.3]),
+      m4.rotationX(angleX),
+      m4.rotationY(angleY),
+      m4.rotationZ(angleZ),
+      m4.translation(position),
+    );
+  };
+  
+  const worldToCamera = () => {
+    // const fov = 1;
+    // const aspect = canvas.clientWidth / canvas.clientHeight;
+    // const near = 1;
+    // const far = 2000;
+    //const perspectiveTransform = m4.perspective(fov, aspect, near, far);
+    //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
+    //return perspectiveTransform;
+    // Independent parameters
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const fov = 0.5; // Horizontal field of view (in radians)
+    const near = 1;
+    
+    // Derivations
+    const nearWidth = 2 * (Math.tan(fov) * near);
+    const right = nearWidth / 2;
+    const top = right / aspect;
+    return m4.orthographicProjection(-right, right, -top, top, near, 1000);
+  };
+  
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.5, 0.4, 20]), worldToCamera()));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.5, 0.4, 20]), worldToCamera()));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.4, 20]), worldToCamera()));
 };
 
 export const Experiment6 = () => {

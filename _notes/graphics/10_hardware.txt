@@ -33,3 +33,9 @@ GPU: [w/Graphics_processing_unit]
 graphics libraries:
   > examples: OpenGL, DirectX, Metal, Vulkan
   > https://www.haroldserrano.com/blog/how-to-develop-a-rendering-engine-an-overview
+
+
+## WebGPU
+> successor to WebGL that exposes a more low-level view of the GPU (backed by Metal/Vulkan/Direct3D)
+
+https://surma.dev/things/webgpu

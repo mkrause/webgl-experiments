@@ -64,6 +64,13 @@ export const m4 = {
     }
     return product;
   },
+  // Multiply all the given matrices, in left-to-right order (i.e. `multiplyPiped(A, B, C)` returns `CBA`)
+  multiplyPiped(...matrices: Array<Matrix4>): Matrix4 {
+    return matrices.reduce(
+      (product, matrix) => m4.multiply(matrix, product),
+      m4.identity(),
+    );
+  },
   
   //
   // Linear transformations
@@ -78,26 +85,28 @@ export const m4 = {
     ];
   },
   
-  rotationX(r: number): Matrix4 {
+  // Note: the angle `a` in each of the following is in radians and represents a counterclockwise rotation along
+  // the respective axis.
+  rotationX(a: number): Matrix4 {
     return [
       [1.0,         0.0,          0.0, 0.0],
-      [0.0, Math.cos(r), -Math.sin(r), 0.0],
-      [0.0, Math.sin(r),  Math.cos(r), 0.0],
+      [0.0, Math.cos(a), -Math.sin(a), 0.0],
+      [0.0, Math.sin(a),  Math.cos(a), 0.0],
       [0.0,         0.0,          0.0, 1.0],
     ];
   },
-  rotationY(r: number): Matrix4 {
+  rotationY(a: number): Matrix4 {
     return [
-      [ Math.cos(r), 0.0, Math.sin(r), 0.0],
+      [ Math.cos(a), 0.0, Math.sin(a), 0.0],
       [         0.0, 1.0,         0.0, 0.0],
-      [-Math.sin(r), 0.0, Math.cos(r), 0.0],
+      [-Math.sin(a), 0.0, Math.cos(a), 0.0],
       [         0.0, 0.0,         0.0, 1.0],
     ];
   },
-  rotationZ(r: number): Matrix4 {
+  rotationZ(a: number): Matrix4 {
     return [
-      [Math.cos(r), -Math.sin(r), 0.0, 0.0],
-      [Math.sin(r),  Math.cos(r), 0.0, 0.0],
+      [Math.cos(a), -Math.sin(a), 0.0, 0.0],
+      [Math.sin(a),  Math.cos(a), 0.0, 0.0],
       [        0.0,          0.0, 1.0, 0.0],
       [        0.0,          0.0, 0.0, 1.0],
     ];
@@ -114,5 +123,45 @@ export const m4 = {
       [0.0, 0.0, 1.0, t[2]],
       [0.0, 0.0, 0.0, 1.0],
     ];
+  },
+  
+  // Generate an orthographic projection matrix
+  // See also:
+  // - https://en.wikipedia.org/wiki/Orthographic_projection
+  // - https://github.com/toji/gl-matrix/blob/master/src/mat4.js#L1664
+  orthographicProjection(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
+    const w = right - left; // Frustum width
+    const h = top - bottom; // Frustum height
+    const d = far - near; // Frustum depth
+    
+    // Translation from camera space origin to clip space origin
+    const translation = m4.translation([
+      -1 * (left + right) / 2, // `(left + right) / 2` is the horizontal midpoint of the frustum
+      -1 * (bottom + top) / 2,
+      -1 * (far + near) / 2,
+    ]);
+    
+    // Scaling to (-1, 1) clip space range (normalized device coordinates)
+    const scaling = m4.scaling([
+      1 / (w / 2), // Scale by the inverse of half the frustum width (equivalently, can simplify this to `2/w`)
+      1 / (h / 2),
+      1 / (d / 2),
+    ]);
+    
+    return m4.multiplyPiped(translation, scaling);
+  },
+  
+  perspective(fieldOfViewInRadians: number, aspect: number, near: number, far: number): Matrix4 {
+    // Ref: https://webgl2fundamentals.org/webgl/webgl-3d-perspective-matrix.html
+    
+    const f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+    const rangeInv = 1.0 / (near - far);
+    
+    return m4.transpose([
+      [f / aspect, 0, 0, 0],
+      [0, f, 0, 0],
+      [0, 0, (near + far) * rangeInv, -1],
+      [0, 0, near * far * rangeInv * 2, 0],
+    ]);
   },
 };

@@ -1,0 +1,237 @@
+
+# Matrices
+
+resources:
+  - [1] Freya Holmér – Math for game devs
+    https://www.youtube.com/watch?v=fjOdtSu4Lm4&list=PLImQaTpSAdsArRFFj8bIfqMk2X7Vlf3XF
+  - [5min-Affine] "Affine transformations in 5 minutes" https://www.youtube.com/watch?v=AheaTd_l5Is
+  - [5min-Perspective] "Perspective projection in 5 minutes" https://www.youtube.com/watch?v=F5WA26W4JaM
+
+
+## Vectors
+
+resources:
+  - Freya Holmér – Vectors https://www.youtube.com/watch?v=fjOdtSu4Lm4&list=PLImQaTpSAdsArRFFj8bIfqMk2X7Vlf3XF
+
+vector: [w/Vector_(mathematics_and_physics)] [w/Euclidean_vector] [w/Coordinate_vector]
+  > (note: we will assume real-valued *coordinate vectors* here, since the context is computer graphics)
+  > an n-dimensional *vector* is an element of R^n (i.e. a tuple of n real numbers)
+
+operations:
+  > note: for convention we will use letters a, b, c, d for vectors, and p, q, r, s for scalars
+  - magnitude (or "length"): |a|
+    > e.g. for a = (p, q), |a| = sqrt(p^2 + q^2)
+  - scalar multiplication: sa (where s is a scalar)
+  - normalize: â = a / |a|
+  - vector addition: a + b
+  - vector subtraction: a - b (note: this is the same as `a + (-1 * b)`, which uses scalar multiplication)
+  - dot product
+  - cross product
+
+dot product (or: scalar product, inner product): [w/Dot_product]
+  > given a = (p, q), b = (r, s)
+  > the dot product a⋅b = pr + qs (note that the result is a scalar)
+  > uses:
+    - scalar projection
+      > see https://youtu.be/fjOdtSu4Lm4?list=PLImQaTpSAdsArRFFj8bIfqMk2X7Vlf3XF&t=8438
+      > given a vector b, and a normalized vector â, â⋅b gives the length of b projected along the direction â
+      > i.e. we can use this to project any vector along some axis/direction
+
+cross product: [w/Cross_product]
+  > takes two vectors and produces another vector, denoted a × b
+
+
+## Matrices
+
+resources:
+  - Freya Holmér – Matrices https://www.youtube.com/watch?v=gVgN5SU6BrA&list=PLImQaTpSAdsArRFFj8bIfqMk2X7Vlf3XF&index=3
+  - 3Blue1Brown: https://www.youtube.com/watch?v=kYB8IZa5AuE
+
+matrix: [w/Matrix_(mathematics)]
+  > a *matrix* is a 2-dimensional array of numbers
+  > notation:                             ⎡1 2 3⎤
+    > written as a table of numbers, e.g. ⎣4 5 6⎦
+    > a matrix has a *size* `<rows>x<cols>` specifying the number of rows and columns (pronounced "<rows> by <cols>")
+      > the number of rows and columns are called the *dimensions* of the matrix
+      > note that unlike vectors (which have a single dimension `n`), matrices have two dimensions (`i` and `j`)
+    > a matrix is usually named with an uppercase letter (e.g. A), and its elements with a lowercase (e.g. `a_i,j`)
+    > indexing is done first by row, then by column, denoted `A[i,j]` or by element using `a_i,j`
+    > we can denote "slicing" of a matrix to get the i-th row or j-th column as `A[i,*]` or `A[*,j]`, respectively
+  > semantic interpretation:
+    > a matrix on its own is just a data structure (table of numbers), it doesn't specify any kind of semantics
+    > in particular, it does not have a preference for either rows->columns or columns->rows as a hierarchy
+      > this is on purpose, because the same matrix may be used for either the rows or columns-first interpretation
+    > in computers however, we must make a choice because computer memory is inherently linear (and so is written code)
+  > row-major vs column-major: [w/Row-_and_column-major_order]
+    > we can linearize a matrix in two ways:
+      - row-major order: a column of rows
+      - column-major order: a row of columns
+      > the natural way to represent a matrix in code is in row-major order, because this matches written text order
+      >  in OpenGL: see "A special case would be OpenGL" in https://en.wikipedia.org/wiki/Row-_and_column-major_order
+        > https://stackoverflow.com/questions/33862730/row-major-vs-column-major-confusion
+  > types of matrices:
+    - the 0x0 matrix is called the *empty* matrix
+    - a 1x1 matrix is equivalent to a scalar
+    - a matrix with a single row is a called a *row matrix*
+    - a matrix with a single column is a called a *column matrix*
+    - an nxn matrix (equal rows and columns) is called a *square* matrix
+  > relation to vectors:
+    > a vector is not a matrix, but it can be identified with a row or column matrix with the same values
+    > by default, vectors are usually considered as column matrices (but it can adapt based on the desired operation)
+    > such a row/column matrix will also be called a *row/column vector* (depending on the context)
+  > matrix as a list of vectors:
+    > a common use of matrices is to serve as a list of vectors, e.g. A = [u v w]
+      > in particular, these will usually be *coordinate vectors* from the same *vector space* [w/Coordinate_vector]
+    > by convention, the vectors are placed as columns in the matrix
+    > thus, we can interpret the matrix in this case as a "vector of vectors" (row vector of column vectors)
+    > the rows can be interpreted as a list of *coordinates* on the respective basis
+      > for this reason, we sometimes speak of "vector-major" and "coordinate-major" instead of row/column-major
+
+matrix operations:
+  - transpose, denoted A^T
+  - scalar addition/multiplication (element-wise)
+  - matrix addition (element-wise)
+  - matrix multiplication
+  - inverse (if invertible)
+
+linear transformations: [w/Linear_map]
+  > ref: 3Blue1Brown [https://www.youtube.com/watch?v=kYB8IZa5AuE]
+  > a *linear transformation* `T` is a mapping `V → W` from n-dim vector space `V` to m-dim vector space `W` such that:
+    - the operations of vector addition and scalar multiplication are preserved
+    > also called a *linear map*
+  > properties:
+    > a linear transformation preserves: [https://gamedev.stackexchange.com/questions/156864/what-does-a-linear]
+      1. the origin (linear transformation always maps the origin of `V` to the origin in `W`)
+      2. parallelism
+      3. collinearity
+    > affine transformations drop (1) (the origin does not need to be mapped to the origin)
+    > projective transformations drop (1) and (2)
+  > if `V` and `W` are finite spaces with a basis defined for each, then we can describe all linear transformations
+    with an mxn matrix `A`
+  > any linear transformation can be described by a matrix (assuming V, W are finite and a basis is defined for each):
+    > (given `V` n-dimensional and `W` m-dimensional, this will be an mxn matrix `A`)
+    - start by taking the basis vectors of `V` and putting it in a matrix (with the basis vectors as column vectors):
+      [i j k ...] (nxn)
+    - now map each of these basis vectors to their images in `W`:
+      [T(i) T(j) T(k) ...] (mxn)
+      > note that these are n (m-dimensional) vectors in `W`
+      > these n vectors can be considered our new basis vectors in `W`
+      > however, note that if n < m, we don't span the entire space, and if n > m, there are redundant basis vectors
+    - this mxn matrix now captures the entire linear transformation
+  > general idea:
+    - all coordinate vectors are linear combinations of some basis vectors
+      > thus, all coordinate vectors are fully specified by the basis vectors + coordinates
+    - we first map the basis vectors to new (potential) basis vectors in `W`
+      > note: these new basis vectors may not be linearly dependent, and there may be redundant basis vectors
+    - each coordinate vector in `V` is then mapped by "changing basis" to the new ones in `W`
+      > i.e. we keep the same coordinates but change the bases, giving us a new linear combination in `W`
+  > example: given 2-dim `V` and 3-dim `W`, and let `v` = [x, y]
+    - construct the matrix `A` = [T(i) T(j)] for i,j basis vectors in `V`
+    - T(v) then becomes the linear combination `x * T(i) + y * T(j)` in `W`
+    - if we write this out in full, the resulting 3-vector becomes:
+      ⎡x * T(i)_1 + y * T(j)_1⎤
+      ⎢x * T(i)_2 + y * T(j)_2⎥
+      ⎣x * T(i)_3 + y * T(j)_3⎦
+  > alternatively, in a more algorithmic (but less enlightening) approach:
+    - take the dot product of the first row of `T` and `v`: `T[1,*] ⋅ v`, this becomes the first entry in `T(v)`
+    - repeat for all `m` rows until you have an m-dimensional vector `T(v)` in `W`
+  > we can *compose* two transformation matrices through an operation called *matrix multiplication* (see below)
+  > it turns out that we can make this work for the vector mapping operation as well if we consider `v` a column matrix:
+    `T(v) := Tv`
+  > in the special case that `V` and `W` are the same dimension, this transformation represents a change of basis
+    > see [w/Change_of_basis]
+
+matrix multiplication:
+  > references:
+    - 3Blue1Brown [https://www.youtube.com/watch?v=XkY2DOUCWMU&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab]
+    - http://matrixmultiplication.xyz
+  > recall that we can describe a linear transformation `T` as `Ax` (for `A` a matrix and `x` a vector)
+    > this takes an mxn-matrix and an n-vector and produces an m-vector
+  > we can generalize a bit to operate not just on one vector `x`, but a list of `p` vectors at the same time
+    > (this will become useful when we discuss composition of transformations below)
+    > this new operation takes an mxn-matrix and an nxp-matrix (p n-vectors) and produces an mxp-matrix
+    > as before when we defined linear transformation matrices, the p n-vectors will be the columns of the matrix
+  > motivation: given `Ax`
+    > if we repeat this process with another transformation matrix `B` we get `B(Ax)`
+    > it turns out that matrix multiplication is associative, thus we can rewrite this as `(BA)x`
+    > intuitively, we are applying `B` to all the basis vectors (columns) in `A`, producing a new transformation
+
+examples of linear transformations in 2D:
+  > see: https://www.youtube.com/watch?v=AheaTd_l5Is
+  - identity: I
+  - scaling:  ⎡s_x  0 ⎤ (i.e. the identity matrix, but with 1 replaced by the corresponding factor)
+              ⎣ 0  s_y⎦ (if any factor is negative, then we get a reflection)
+  - shearing: ⎡ 1  h_x⎤
+              ⎣h_y  1 ⎦
+  - rotation: ⎡ s  -h ⎤ ~ ⎡cos(a) -sin(a)⎤ (combination of shearing in x and y, in equal but opposite amounts)
+              ⎣ h   s ⎦   ⎣sin(a)  cos(a)⎦ (in particular, to rotate at angle `a`, `h` = `sin(a)`)
+    > shearing also increases the size, so we need to compensate by scaling by `s` = `cos(a)` to counteract
+
+examples of linear transformations in 3D:
+  > see: https://www.youtube.com/watch?v=AheaTd_l5Is
+  - identity: I
+  - scaling:  ⎡s_x  0   0 ⎤
+              ⎢ 0  s_y  0 ⎥
+              ⎣ 0   0  s_z⎦
+  - shearing: ⎡ 1   h_xy  h_xz⎤ (in 3D there are six ways to shear, these cover all the remaining entries)
+              ⎢h_yx  1    h_yz⎥
+              ⎣h_zx h_zy   1  ⎦
+  - rotation: ⎡cos(a) -sin(a)    0   ⎤ (we can combine the six shears to form rotations, one for each of three axes)
+    (along Z) ⎢sin(a)  cos(a)    0   ⎥ (note that this (Z) rotation corresponds exactly to the 2D case)
+              ⎣  0       0       1   ⎦ (in essence, in 2D we can only rotate along the (hypothetical) Z axis)
+  - rotation: ⎡cos(a)    0     sin(a)⎤
+    (along Y) ⎢  0       1       0   ⎥
+              ⎣-sin(a)   0     cos(a)⎦
+  - rotation: ⎡  1       0       0   ⎤
+    (along X) ⎢  0     cos(a) -sin(a)⎥
+              ⎣  0     sin(a)  cos(a)⎦
+  > the three rotations (Z, Y, X) are also called yaw, pitch, and roll, respectively [w/Rotation_matrix]
+
+matrix transformations: [w/Transformation_matrix]
+  > ref: [5min-Affine] "Affine transformations in 5 minutes" https://www.youtube.com/watch?v=AheaTd_l5Is
+  > we have seen that matrices can represent linear transformations
+    > these include scaling and shearing (and rotation, which is a combination of both, see [5min-Affine])
+  > linear transformation however cannot represent certain other important transformations like:
+    - translation (this violates the "origin gets mapped to the origin" principle)
+    - projective transformations (violates the "straight lines remain straight lines" principle)
+  > matrix transformations *can* however, describe some non-linear transformations if we go a dimension higher
+    > in particular, we can represent the following as linear transformations in R^n+1:
+      - translation, through affine transformation matrices [w/Affine_transformation]
+      - projections, through projective transformation matrices [w/Homography]
+  > for example, in 3D space, we can use a 4x4-matrix, and we must add a 4th coordinate to our input vector
+    - using the additional coordinate (`w` for 3D) is called *homogeneous coordinates* [w/Homogeneous_coordinates]
+    - the 4x4-matrix is also called an *augmented matrix* [w/Augmented_matrix]
+  > affine transformations (translation): [w/Affine_transformation]
+    > see [5min-Affine] for a great visual on how translation in 2D is a shear in 3D
+    - to implement an affine transformation, we augment the matrix with another column containing the translation vector
+    - we also add one more row containing [0 0 ... 1]
+    - the input vector must have an additional coordinate of 1 (homogeneous coordinates)
+      > conveniently, we can set this coordinate to 0 if we want to "turn off" the translation and get a linear tf.
+    - the resulting vector again has an addition coordinate of 1, which we can ignore
+  > projective transformations: [w/Projective_geometry] [w/Homography]
+    > affine transformations are a special case of *projective transformations*
+    > in the general case of projective transformations, the last row in the matrix will contain a projection vector
+
+examples of projective transformations in 3D:
+  - translation:  ⎡ 1   0   0  t_x⎤
+                  ⎢ 0   1   0  t_y⎥
+                  ⎢ 0   0   1  t_z⎥
+                  ⎣ 0   0   0   1 ⎦
+  - projection:   ⎡ 1   0   0  t_x⎤ (builds upon the affine (translation) transform)
+                  ⎢ 0   1   0  t_y⎥ (the last row contains a perspective vector)
+                  ⎢ 0   0   1  t_z⎥
+                  ⎣p_x p_y p_z  1 ⎦
+
+perspective divide:
+  > work out the general projective matrix transform above:
+    ⎡ 1   0   0  t_x⎤⎡v_x⎤   ⎡v_x + t_x⎤
+    ⎢ 0   1   0  t_y⎥⎢v_y⎥ = ⎢v_y + t_y⎥
+    ⎢ 0   0   1  t_z⎥⎢v_z⎥   ⎢v_z + t_z⎥
+    ⎣p_x p_y p_z  1 ⎦⎣ 1 ⎦   ⎣p_x*v_x + p_y*v_y + p_z*v_z + 1⎦
+  > notice how the `w` component in the result is potentially non-1
+  > since we're dealing with homogeneous coordinates, in order for this to make sense we must divide the resulting
+    vector by `w` to normalize it back to a homogeneous vector with `w` = 1
+  > this is what allows us to implement perspective, and it's called the *perspective divide*
+    > in particular, if p = [0, 0, 1] then `w` = 1 + p_z, and thus we divide by `z` (more depth = smaller)
+
+> for more on projections, see [12_projections.txt]

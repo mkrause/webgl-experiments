@@ -1,0 +1,121 @@
+
+# Projections
+
+> implementations:
+  - https://github.com/toji/gl-matrix/blob/master/src/mat4.js#L1539 (perspectiveNO)
+
+
+## Motivation
+
+ref:
+  - [OGLDEV] OpenGL for beginners: https://www.youtube.com/watch?v=h2cP6sQYdf0&list=PLA0dXqQjCx0S04ntJKUftl6OaOgsiwHjA
+    - [OGLDEV-Perspective] https://www.youtube.com/watch?v=LhQ85bPCAJ8&list=PLA0dXqQjCx0S04ntJKUftl6OaOgsiwHjA
+  - Graphics in 5 min – Perspective Projection https://www.youtube.com/watch?v=F5WA26W4JaM
+
+goal:
+  > we have a 3D scene/world that we want to "render" to a 2D screen
+  > mathematically, this is *projection* of a 3D space to a 2D space
+    > we will call this 2D space the *projection plane* (an infinite plane positioned/oriented in the 3D world)
+    > the *viewport* is a bound centered at the origin of the projection plane with width `vw` and height `vh`
+    > the *screen* is the area bounded by the viewport
+    > the screen is rasterized as pixel data and displayed on some physical *display device*
+  > there are several ways to perform projections:
+    - orthographic projection: simply discard one dimension (the "depth" dimension orthogonal to the plane)
+    - perspective projection: project towards a single focal point (to simulate a virtual camera/eye)
+
+real-world physics:
+  > ref: Graphics in 5 min – Perspective Projection [https://www.youtube.com/watch?v=F5WA26W4JaM]
+  > we want to simulate how the human eye (or the artificial version, the *camera*) perceives the world
+  > a naive "camera" would just be a screen that we expose to light
+    > this does not work, because light radiates diffusely in all directions (it would be an utmost blurry "image")
+    > e.g. if we have a point on our target object, the light from it will end up on all points on the screen
+  > instead, we introduce a small hole (an *aperture*) that only captures light from one specific angle for any source
+    > this is a pinhole camera [w/Pinhole_camera]
+    > we will consider the idealized scenario where the aperture is a point
+      > in real life, there will be some aperture size and this will determine how much light enters
+        > the smaller the aperture, the less light, but the clearer (less blurry) the image
+        > (in real life, a lens can be introduced to gather more light before it gets focused into the aperture)
+  > a *screen* (or sensor) is placed behind the aperture, and this captures (an inverted) image
+    > in computer graphics, we often place the screen in front of the "aperture" (virtual camera) instead
+    > this achieves the same thing, without the inversion (but doesn't make sense in real life)
+  > the sensor size + distance from aperture determines the *field of view*
+    > the field of view is an angle determining the range of what we can see [w/Field_of_view] [youtu.be/pUuAx_zFnEk]
+  > the field of view determines size of the "cone of vision" (for eyes) or pyramid (for rectangular sensors or screens)
+
+
+## Virtual camera systems
+
+in computer graphics, when simulating a "virtual" camera: [w/Virtual_camera_system]
+  - the "aperture" is a point in space that we call the virtual camera, or just *camera* for short
+  - the screen is in front rather than behind the aperture (virtual camera)
+  - we always use a pyramid rather than a cone (since we have a rectangular screen)
+  - we configure the FOV and the screen size grows/shrinks accordingly (respecting aspect ratio of the viewport)
+  - rather than having an infinite pyramid, we *clip* the pyramid using parallel *clip planes*, one near and one far
+    > this generates a shape called a *frustum* [w/Frustum], we call this the *view frustum* [w/Viewing_frustum]
+    > the *screen* also serves as the near clip plane
+    > for the near clip plane, this makes sense because:
+      - we don't need to render things that close
+      - it avoids division by zero (perspective divide for z=0)
+      - since the screen is in front of the "aperture", it makes sense not to render things between screen and camera
+    > for the far clip plane, this is done to limit the maximum distance of rendering (which can help performance)
+  - we will then want to *project* the view frustum (3D volume) onto the screen (2D plane)
+
+types of projection:
+  - perspective projection (discussed above)
+  - orthographic projection
+    > unlike in real life, we are not restricted by physics of light
+    > thus, rather than having the camera be a single point, we can also project light to a screen in parallel
+    > alternatively, could think of this as though the focal point is infinitely far away
+
+
+## Orthographic projection
+
+https://en.wikipedia.org/wiki/Parallel_projection
+https://en.wikipedia.org/wiki/Orthographic_projection
+
+orthographic projection matrix:
+  > the orthographic projection matrix is very simply, we just "discard" one axis
+  > for example, if the z-axis is the depth axis, then the matrix just scales z to 0:
+    ⎡1 0 0 0⎤
+    ⎢0 1 0 0⎥
+    ⎢0 0 0 0⎥
+    ⎣0 0 0 1⎦
+
+orthographic camera system:
+  > often, we will still have a virtual camera (with view frustum etc.), just with an orthographic projection
+  > in this case, we need to do some more work to map from camera space to clip space
+  > scenario:
+    - we are in camera space (i.e. we have already mapped from world space to camera space):
+      - camera is at the origin
+      - positive z-axis extends "away" from the camera in the viewing direction, orthogonal to the screen
+    - we have some known parameters:
+      - viewport aspect ratio (width divided by height) `r`
+      - vertical field of view angle `fov` in radians (the horizontal can be derived from the viewport aspect ratio)
+      - distance along the z-axis to the origin of the view frustum (clip space) `d`
+  > we will first need to translate to clip space origin:
+    T = ⎡1 0  0 -(left+right)/2⎤ (`(left+right)/2` is the horizontal midpoint of the frustum)
+        ⎢0 1  0 -(top+bottom)/2⎥
+        ⎢0 0 -1 -(far+near)/2  ⎥ (XX do we need the -1 scale here?)
+        ⎣0 0  0  1             ⎦
+  > and then scale to get a normalized (-1, 1) cube:
+    S = ⎡2/w  0   0   0⎤ (`w` here is the frustum width, i.e. `right - left`, and `2/w` is `1/(w/2)`)
+        ⎢ 0  2/h  0   0⎥ (i.e. we scale by the inverse half the width/height/depth)
+        ⎢ 0   0   2/d 0⎥
+        ⎣ 0   0   0   1⎦
+  > putting it together, we get the transform P = ST (see [w/Orthographic_projection] for the details)
+
+
+## Projective matrix transformations
+
+https://en.wikipedia.org/wiki/Pinhole_camera_model
+https://en.wikipedia.org/wiki/Camera_matrix
+
+recall from the chapter on matrix transformations [00_matrices.txt]:
+  > in 3D graphics, we can use 4x4 matrices to perform linear, affine, and projective transformations
+  > a *projective transformation* matrix looks as follows:
+    ⎡ 1   0   0  t_x⎤
+    ⎢ 0   1   0  t_y⎥
+    ⎢ 0   0   1  t_z⎥
+    ⎣p_x p_y p_z  1 ⎦
+    > here, `t` is the translation vector, `p` is the perspective vector
+    > the inner 3x3 matrix does not have to be the identity, it can be any usual linear transformation

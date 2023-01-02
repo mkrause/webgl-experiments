@@ -2,7 +2,7 @@
 # OpenGL pipeline
 
 history:
-  - fixed-function pipeline [deprecated]
+  - fixed-function pipeline [legacy]
   - programmable pipeline (shaders)
 
 
@@ -15,7 +15,7 @@ vertex specification
             -> final frame
 ￼
 pipeline:
-  > An input buffer is set up containing vertex data and other attributes
+  > an input buffer is set up containing vertex data and other attributes
   > GPUs have a number of "shader cores" that run in parallel
-  > Each shader core gets a piece of the vertex buffer and computes an output
-  > The output of one shader may be passed to the next stage of the pipeline
+  > each shader core gets a piece of the vertex buffer and computes an output
+  > the output of one shader may be passed to the next stage of the pipeline
