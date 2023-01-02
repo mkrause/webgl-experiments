@@ -168,8 +168,11 @@ export const m4 = {
     return m4.multiplyPiped(translation, scaling);
   },
   
-  orthographicProjection() {
-    
+  orthographicProjection(fov: number, aspect: number, near: number, far: number): Matrix4 {
+    const nearHeight = 2 * (Math.tan(fov / 2) * near); // The near clip plane height (derived from FoV and distance)
+    const top = nearHeight / 2; // The top clip plane Y-coordinate (derived from the near clip plane height)
+    const right = top * aspect; // The right clip plane X-coordinate (which is fixed by the aspect ratio)
+    return m4.orthographicFrustum(-right, right, -top, top, near, far);
   },
   
   perspective(fieldOfViewInRadians: number, aspect: number, near: number, far: number): Matrix4 {

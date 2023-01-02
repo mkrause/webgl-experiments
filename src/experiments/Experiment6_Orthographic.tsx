@@ -429,16 +429,11 @@ const renderExperiment = (
     //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
     //return perspectiveTransform;
     
-    // Independent parameters
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const fov = 0.8 * (0.5 * Math.PI); // Vertical field of view (in radians)
     const near = -1.5;
-    
-    // Derivations
-    const nearHeight = 2 * (Math.tan(fov / 2) * near);
-    const top = nearHeight / 2;
-    const right = top * aspect; // Derive the frustum height from the width + aspect ratio
-    const projection = m4.orthographicFrustum(-right, right, -top, top, near, -1000);
+    const far = -1000;
+    const projection = m4.orthographicProjection(fov, aspect, near, far);
     
     // Note: we use a right-handed coordinate system (positive z-axis towards the viewer), but OpenGL clip space is a
     // left-handed system (z-axis away from the viewer), so we need to compensate by flipping the z-axis for clip space.
