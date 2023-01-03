@@ -6,7 +6,6 @@ import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/react
 
 /*
 Experiment 6: add a virtual camera system, with orthographic projection.
-  - Reorganize the code to allow drawing multiple objects
   - Add a virtual camera (no world space to camera space transform yet)
   - Use right-handed coordindate system for world space, and map to the left-handed coordinate system for clip space
 */
@@ -20,7 +19,7 @@ const webglUtil = {
   initializeRenderingContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
     const gl: null | WebGL2RenderingContext = canvas.getContext('webgl2');
     if (gl === null) { throw new Error(`Unable to initialize WebGL`); }
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    //gl.viewport(0, 0, canvas.width, canvas.height); // Needs to be called if the canvas width/height change
     return gl;
   },
   
@@ -417,20 +416,21 @@ const renderExperiment = (
   };
   
   const worldToCamera = () => {
-    return m4.identity(); // TODO: currently the camera space is assumed to equal world space (camera fixed at origin)
+    // Very basic camera transform that gives a side view of the spinning cubes
+    const nearCubes = 30;
+    const farCube = 31;
+    const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
+    return m4.multiplyPiped(
+      m4.translation([0, 0, distanceToObject]),
+      m4.rotationY(0.4 * Math.PI),
+      m4.rotationX(0.2 * Math.PI),
+      m4.translation([0, 0, -distanceToObject]),
+    );
   };
   
   const cameraToClip = () => {
-    // const fov = 1;
-    // const aspect = canvas.clientWidth / canvas.clientHeight;
-    // const near = 1;
-    // const far = 2000;
-    //const perspectiveTransform = m4.perspective(fov, aspect, near, far);
-    //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
-    //return perspectiveTransform;
-    
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    const fov = 0.8 * (0.5 * Math.PI); // Vertical field of view (in radians)
+    const fov = 0.9 * (0.5 * Math.PI); // Vertical field of view (in radians)
     const near = -1.5;
     const far = -1000;
     const projection = m4.orthographicProjection(fov, aspect, near, far);
@@ -444,10 +444,10 @@ const renderExperiment = (
   renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -30]), worldToClip));
   renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -30]), worldToClip));
   renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -30]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip)); // Further back along Z
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -31]), worldToClip)); // Further back along Z
   
   // console.log(-30, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -30]), worldToClip), [0, 0, 0, 1]));
-  // console.log(-60, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip), [0, 0, 0, 1]));
+  // console.log(-60, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -31]), worldToClip), [0, 0, 0, 1]));
 };
 
 export const Experiment6 = () => {

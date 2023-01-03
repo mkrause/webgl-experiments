@@ -1,88 +1,17 @@
 
+import { type Vector3, type Vector4, type Matrix4, m4 } from '../util/matrix';
+
 import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
 
 /*
-Experiment 5: make the code a bit more declarative with a "resource" abstraction (similar to regl)
-  - Reorganize the code to allow drawing multiple objects
+Experiment 7: add perspective
 */
 
 
 // ---
 // Utilities (reusable)
 // ---
-
-type Vector3 = [number, number, number];
-type Matrix4 = [
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-];
-
-const m4 = {
-  identity(): Matrix4 {
-    return [
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 0.0,
-    ];
-  },
-  multiply(a: Matrix4, b: Matrix4): Matrix4 {
-    const b00 = b[0 * 4 + 0];
-    const b01 = b[0 * 4 + 1];
-    const b02 = b[0 * 4 + 2];
-    const b03 = b[0 * 4 + 3];
-    const b10 = b[1 * 4 + 0];
-    const b11 = b[1 * 4 + 1];
-    const b12 = b[1 * 4 + 2];
-    const b13 = b[1 * 4 + 3];
-    const b20 = b[2 * 4 + 0];
-    const b21 = b[2 * 4 + 1];
-    const b22 = b[2 * 4 + 2];
-    const b23 = b[2 * 4 + 3];
-    const b30 = b[3 * 4 + 0];
-    const b31 = b[3 * 4 + 1];
-    const b32 = b[3 * 4 + 2];
-    const b33 = b[3 * 4 + 3];
-    const a00 = a[0 * 4 + 0];
-    const a01 = a[0 * 4 + 1];
-    const a02 = a[0 * 4 + 2];
-    const a03 = a[0 * 4 + 3];
-    const a10 = a[1 * 4 + 0];
-    const a11 = a[1 * 4 + 1];
-    const a12 = a[1 * 4 + 2];
-    const a13 = a[1 * 4 + 3];
-    const a20 = a[2 * 4 + 0];
-    const a21 = a[2 * 4 + 1];
-    const a22 = a[2 * 4 + 2];
-    const a23 = a[2 * 4 + 3];
-    const a30 = a[3 * 4 + 0];
-    const a31 = a[3 * 4 + 1];
-    const a32 = a[3 * 4 + 2];
-    const a33 = a[3 * 4 + 3];
-    
-    return [
-      b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
-      b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
-      b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
-      b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
-      b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30,
-      b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31,
-      b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32,
-      b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33,
-      b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30,
-      b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31,
-      b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32,
-      b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33,
-      b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
-      b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
-      b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
-      b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33,
-    ];
-  },
-};
 
 const webglUtil = {
   initializeRenderingContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
@@ -141,7 +70,7 @@ const webglUtil = {
     // Link the program
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.log(gl.getProgramInfoLog(program));
+      console.error(gl.getProgramInfoLog(program));
       gl.deleteProgram(program);
       throw new Error(`Failed to link shader program`);
     }
@@ -180,6 +109,17 @@ const webglUtil = {
     
     if (vertexBuffer === null) { throw new Error(`Failed to create vertex array buffer`); }
     
+    /*
+    Note: we could use a vertex array object here. This captures the vertex attributes at init time, which speeds
+    up rendering (saves a few calls to bindBuffer/vertexAttribPointer/enableVertexAttribArray). However, it requires
+    us to know the attribute location ahead of time, which makes this a bit tricky.
+    See: https://stackoverflow.com/questions/50255115/what-are-vertex-arrays-in-opengl-webgl2
+    */
+    //const vao: null | WebGLVertexArrayObject = gl.createVertexArray();
+    //gl.bindVertexArray(vao);
+    //gl.enableVertexAttribArray(positionAttributeLocation);
+    //gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+    
     return vertexBuffer;
   },
   // Set up an index array buffer (for later use)
@@ -201,8 +141,8 @@ type Mesh = { vertices: Array<Vector3>, indices: Array<number> };
 
 const Geometry = {
   cube(): Mesh {
-    // An array of 3D vertices forming a unit cube
-    // These are in local space coordinates. Counterclockwise order is front-facing.
+    // An array of 3D vertices forming a unit cube.
+    // This assumes a right-handed coordinate system (positive z-axis extending towards the viewer).
     const vertices: Array<Vector3> = [
       [-1.0, -1.0, +1.0], [+1.0, -1.0, +1.0], [+1.0, +1.0, +1.0], [-1.0, +1.0, +1.0], // Front face
       [-1.0, -1.0, -1.0], [-1.0, +1.0, -1.0], [+1.0, +1.0, -1.0], [+1.0, -1.0, -1.0], // Back face
@@ -212,13 +152,14 @@ const Geometry = {
       [-1.0, -1.0, -1.0], [-1.0, -1.0, +1.0], [-1.0, +1.0, +1.0], [-1.0, +1.0, -1.0], // Left face
     ];
     
+    // Specify the array indices, where triangle vertices are ordered in counter-clockwise order
     const indices: Array<number> = [
-      0, 1, 2, 0, 2, 3, // Front
-      4, 5, 6, 4, 6, 7, // Back
-      8, 9, 10, 8, 10, 11, // Top
-      12, 13, 14, 12, 14, 15, // Bottom
-      16, 17, 18, 16, 18, 19, // Right
-      20, 21, 22, 20, 22, 23, // Left
+      0, 1, 2, 0, 2, 3, // Front quad
+      4, 5, 6, 4, 6, 7, // Back quad
+      8, 9, 10, 8, 10, 11, // Top quad
+      12, 13, 14, 12, 14, 15, // Bottom quad
+      16, 17, 18, 16, 18, 19, // Right quad
+      20, 21, 22, 20, 22, 23, // Left quad
     ];
     
     return { vertices, indices };
@@ -304,7 +245,7 @@ const webglResourceUtil = {
       if (typeof uniformLocation === 'undefined') { throw new Error(`Missing uniform "${uniformName}"`); }
       switch (uniform.type) {
         case 'uniformMatrix4fv':
-          gl.uniformMatrix4fv(uniformLocation, uniform.transpose ?? true, uniform.data);
+          gl.uniformMatrix4fv(uniformLocation, uniform.transpose ?? true, uniform.data.flat());
           break;
         default: throw new Error(`Unknown uniform type "${uniform.type}"`);
       }
@@ -370,13 +311,6 @@ type AppContext = {
   resource: ResourceCompiled,
 };
 const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AppContext => {
-  //
-  // Set up resources
-  //
-  
-  // const cube: Mesh = Geometry.cube();
-  //const cubeWithBuffers: MeshWithBuffers = webglResourceUtil.createBuffersForMesh(gl, cube);
-  
   const colorPalette = [
     [0.8, 0, 0, 1],
     [0, 1, 0, 1],
@@ -399,7 +333,7 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       out vec4 color;
       
       void main(void) {
-        gl_Position = transformation * vec4(vertex_position, 1.0);
+        gl_Position = transformation * vec4(vertex_position.xyz, 1.0);
         color = vertex_color;
       }
     `.trim(),
@@ -433,7 +367,6 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
   };
 };
 
-
 const renderCube = (gl: WebGL2RenderingContext, cube: ResourceCompiled, transform: Matrix4): void => {
   webglResourceUtil.useResource(gl, cube);
   gl.uniformMatrix4fv(cube.uniformLocations.transformation, true, transform.flat());
@@ -447,81 +380,91 @@ const renderExperiment = (
   app: AppContext,
   timing: TimingInfo,
 ) => {
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  
   // Clear the canvas + depth buffer
   // https://stackoverflow.com/questions/48693164/depth-buffer-clear-behavior-between-draw-calls
   gl.clearColor(0.6, 0.6, 0.6, 1.0);
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-  // Enable the depth test
+  // Enable depth testing and culling
   gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.enable(gl.CULL_FACE);
+  gl.frontFace(gl.CCW);
+  gl.cullFace(gl.BACK);
   
   
-  const cube = app.resource;
+  const cubeResource = app.resource;
   
-  webglResourceUtil.useResource(gl, cube);
+  webglResourceUtil.useResource(gl, app.resource);
   
-  // Override transform uniform
-  const getTransformation = (position: Vector3): Matrix4 => {
-    const translationMatrix: Matrix4 = [
-      1.0, 0.0, 0.0, position[0],
-      0.0, 1.0, 0.0, position[1],
-      0.0, 0.0, 1.0, position[2],
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const scaleMatrix: Matrix4 = [
-      0.3, 0.0, 0.0, 0.0,
-      0.0, 0.3, 0.0, 0.0,
-      0.0, 0.0, 0.3, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
+  const localToWorld = (position: Vector3): Matrix4 => {
+    const dir = -1; // +1 for counterclockwise, -1 for clockwise
+    const angleX = dir * timing.time / 2000;
+    const angleY = dir * timing.time / 1000;
+    const angleZ = dir * timing.time / 2000;
     
-    const angleX = timing.time / 2000;
-    const angleY = timing.time / 1000;
-    const angleZ = timing.time / 2000;
-    const rotationMatrixX: Matrix4 = [
-      1.0, 0.0, 0.0, 0.0,
-      0.0, Math.cos(angleX), Math.sin(angleX), 0.0,
-      0.0, -1 * Math.sin(angleX), Math.cos(angleX), 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const rotationMatrixY: Matrix4 = [
-      Math.cos(angleY), 0.0, -1 * Math.sin(angleY), 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      Math.sin(angleY), 0.0, Math.cos(angleY), 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const rotationMatrixZ: Matrix4 = [
-      Math.cos(angleZ), -1 * Math.sin(angleZ), 0.0, 0.0,
-      Math.sin(angleZ), Math.cos(angleZ), 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    const aspectRatioMatrix: Matrix4 = [
-      canvas.height / canvas.width, 0.0, 0.0, 0.0, // Compensate for the aspect ratio
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0,
-    ];
-    
-    return m4.multiply(
-      m4.multiply(
-        rotationMatrixZ,
-        m4.multiply(
-          rotationMatrixY,
-          m4.multiply(rotationMatrixX, m4.multiply(scaleMatrix, translationMatrix)),
-        ),
-      ),
-      aspectRatioMatrix,
+    // Map from the local model space to the world space (i.e. "place" the model in the world)
+    return m4.multiplyPiped(
+      m4.scaling([0.3, 0.3, 0.3]),
+      m4.rotationX(angleX),
+      m4.rotationY(angleY),
+      m4.rotationZ(angleZ),
+      m4.translation(position),
     );
   };
   
-  renderCube(gl, cube, getTransformation([-0.6, -0.4, 0]));
-  renderCube(gl, cube, getTransformation([+0.6, -0.4, 0]));
-  renderCube(gl, cube, getTransformation([0, 0.4, 0]));
+  const worldToCamera = () => {
+    return m4.identity();
+    
+    // Side view of the spinning cubes
+    const nearCubes = 30;
+    const farCube = 31;
+    const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
+    return m4.multiplyPiped(
+      m4.translation([0, 0, distanceToObject]),
+      m4.rotationY(0.4 * Math.PI),
+      m4.rotationX(0.2 * Math.PI),
+      m4.translation([0, 0, -distanceToObject]),
+    );
+  };
+  
+  const cameraToClip = () => {
+    // const fov = 1;
+    // const aspect = canvas.clientWidth / canvas.clientHeight;
+    // const near = 1;
+    // const far = 2000;
+    //const perspectiveTransform = m4.perspective(fov, aspect, near, far);
+    //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
+    //return perspectiveTransform;
+    
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const fov = 1 * (0.5 * Math.PI); // Vertical field of view (in radians)
+    const near = -1.5;
+    const far = -1000;
+    //const projection = m4.orthographicProjection(fov, aspect, near, far);
+    const projection = m4.perspectiveProjection(fov, aspect, near, far);
+    
+    // Note: we use a right-handed coordinate system (positive z-axis towards the viewer), but OpenGL clip space is a
+    // left-handed system (z-axis away from the viewer), so we need to compensate by flipping the z-axis for clip space.
+    return m4.multiplyPiped(projection, m4.scaling([1, 1, -1]));
+  };
+  
+  const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -30]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -200]), worldToClip)); // Further back along Z
+  
+  // const T = m4.multiplyPiped(localToWorld([0, 0, -80]), worldToClip);
+  // console.log(m4.print(T));
+  // console.log(m4.multiplyVector(T, [1, 1, 30, 1]));
+  // console.log(-60, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip), [0, 0, 0, 1]));
 };
 
-export const Experiment5 = () => {
+export const Experiment7 = () => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [glContext, setGlContext] = React.useState<null | WebGL2RenderingContext>(null);
   const [appContext, setAppContext] = React.useState<null | AppContext>(null);

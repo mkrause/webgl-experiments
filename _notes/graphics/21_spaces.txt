@@ -59,6 +59,7 @@ common spaces:
         > the +z axis extends from the camera through the middle of the FOV pyramid
         > the x and y axes extend horizontally and vertically, aligned with the cross section plane of the pyramid
   - clip space
+    > https://gamedev.stackexchange.com/questions/29018/why-does-opengl-require-all-coordinates-in-1-1-ndc
     > clip space is the coordinate system of the rasterizer (e.g. OpenGL)
       > vertices returned from the vertex shader are defined in this space
       > it is called "clip space" because all vertices outside of the (-1, 1) volume (along x/y/z) are "clipped"

@@ -1,8 +1,8 @@
 
 /*
-Simple implementation of vector and matrix math (not particularly efficient, just for experimental purposes).
+Simple implementation of vector and matrix math (not particularly efficient, focuses on readability).
 
-Similar libraries:
+Existing libraries:
 - https://glmatrix.net
 */
 
@@ -168,6 +168,8 @@ export const m4 = {
     return m4.multiplyPiped(translation, scaling);
   },
   
+  // Generate an orthographic projection matrix, based on field of view
+  // `fov` is the vertical field of view angle, in radians
   orthographicProjection(fov: number, aspect: number, near: number, far: number): Matrix4 {
     const nearHeight = 2 * (Math.tan(fov / 2) * near); // The near clip plane height (derived from FoV and distance)
     const top = nearHeight / 2; // The top clip plane Y-coordinate (derived from the near clip plane height)
@@ -175,17 +177,47 @@ export const m4 = {
     return m4.orthographicFrustum(-right, right, -top, top, near, far);
   },
   
-  perspective(fieldOfViewInRadians: number, aspect: number, near: number, far: number): Matrix4 {
+  // Generate a perspective projection matrix
+  // `fov` is the vertical field of view angle, in radians
+  perspectiveProjection(fov: number, aspect: number, near: number, far: number): Matrix4 {
     // Ref: https://webgl2fundamentals.org/webgl/webgl-3d-perspective-matrix.html
     
-    const f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
-    const rangeInv = 1.0 / (near - far);
+    // const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
+    // const rangeInv = 1.0 / (near - far);
+    // 
+    // return m4.transpose([
+    //   [f / aspect, 0, 0, 0],
+    //   [0, f, 0, 0],
+    //   [0, 0, (near + far) * rangeInv, -1],
+    //   [0, 0, near * far * rangeInv * 2, 0],
+    // ]);
+    // return [
+    //   [f / aspect, 0, 0, 0],
+    //   [0, f, 0, 0],
+    //   [0, 0, (near + far) * rangeInv, near * far * rangeInv * 2],
+    //   [0, 0, -1, 0],
+    // ];
     
-    return m4.transpose([
-      [f / aspect, 0, 0, 0],
-      [0, f, 0, 0],
-      [0, 0, (near + far) * rangeInv, -1],
-      [0, 0, near * far * rangeInv * 2, 0],
+    const proj = m4.orthographicProjection(fov, aspect, near, far);
+    const pers = m4.identity();
+    pers[3] = [0, 0, 1, 0];
+    return m4.multiplyPiped(proj, pers);
+    
+    const w = Math.abs(right - left); // Frustum width
+    const h = Math.abs(top - bottom); // Frustum height
+    const d = Math.abs(far - near); // Frustum depth
+    
+    const translation = m4.translation([
+      -1 * (left + right) / 2, // `(left + right) / 2` is the horizontal midpoint of the frustum
+      -1 * (bottom + top) / 2,
+      -1 * (near + far) / 2,
     ]);
+    
+    return [
+      [1.0, 0.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0, 0.0],
+      [0.0, 0.0, 1.0, 0.0],
+      [0.0, 0.0, 0.0, 1.0],
+    ];
   },
 };

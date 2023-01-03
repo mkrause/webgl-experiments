@@ -166,6 +166,7 @@ examples of linear transformations in 2D:
   - rotation: ⎡ s  -h ⎤ ~ ⎡cos(a) -sin(a)⎤ (combination of shearing in x and y, in equal but opposite amounts)
               ⎣ h   s ⎦   ⎣sin(a)  cos(a)⎦ (in particular, to rotate at angle `a`, `h` = `sin(a)`)
     > shearing also increases the size, so we need to compensate by scaling by `s` = `cos(a)` to counteract
+    > rotations can also be done using a sequence of three shears, see: https://www.youtube.com/watch?v=tHekokkHmlM
 
 examples of linear transformations in 3D:
   > see: https://www.youtube.com/watch?v=AheaTd_l5Is

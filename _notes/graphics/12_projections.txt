@@ -117,13 +117,33 @@ orthographic camera system:
 
 https://en.wikipedia.org/wiki/Pinhole_camera_model
 https://en.wikipedia.org/wiki/Camera_matrix
+https://en.wikipedia.org/wiki/3D_projection#Mathematical_formula
 
-recall from the chapter on matrix transformations [00_matrices.txt]:
-  > in 3D graphics, we can use 4x4 matrices to perform linear, affine, and projective transformations
-  > a *projective transformation* matrix looks as follows:
-    ⎡ 1   0   0  t_x⎤
-    ⎢ 0   1   0  t_y⎥
-    ⎢ 0   0   1  t_z⎥
-    ⎣p_x p_y p_z  1 ⎦
-    > here, `t` is the translation vector, `p` is the perspective vector
-    > the inner 3x3 matrix does not have to be the identity, it can be any usual linear transformation
+https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix.html
+
+resources:
+  - Graphics in 5 min – Perspective Projections Part 2 https://www.youtube.com/watch?v=g7Pb8mrwcJ0
+
+perspective projection:
+  > ref: [g5min] – Perspective Projections Part 2 https://www.youtube.com/watch?v=g7Pb8mrwcJ0
+  > given a pinhole camera setup, with: [w/Pinhole_camera_model]
+    - left-handed coordinate system
+    - an aperture at the origin, with the +z-axis (viewing direction or "optical axis") extending away from the camera
+    - an image plane (screen) behind the aperture parallel to x/y ("principal plane") at distance `f` (focal length)
+  > then, if we have a point `p` (px, py, pz) somewhere in the world, we can draw a *projection line* through the origin
+    and onto the screen, landing on some point `q` (qx, qy) on the screen (we can ignore the z component of `q`)
+  > visually: (here, looking along the x axis such that +x is towards the viewer)
+       p = (px,py,pz)                      p = (px,py,pz)
+      │ ╲                                 │ ╲ q = (qx, qy)
+   py │   ╲                            py │qy│╲
+      │     ╲    f               ~        │  │f ╲
+      <────── • ──── Z                    <────── • Z
+         pz     ╲  │ qy                      pz
+                  ╲│ q = (-qx, -qy)
+    > on the right, we reflected the screen to the positive side of the z-axis, this helps remove the negative signs
+    > (also known as a "virtual image plane")
+  > this forms two similar triangles, with `qy` the unknown variable we want to determine
+    > by similar triangles, we know that qy/f = py/pz, thus qy = f * py/pz = (f/pz) * py
+  > doing it for the other component also, we get: q = (f/pz) * p (where `f/pz` is a scalar, and `p`/`q` vectors)
+  > in other words, any vector can be projected by multiplying it by the scalar `f/z`, (`z` is the z-comp of the vector)
+    > often, `f` will be 1, in which case this is simply dividing by `z`
