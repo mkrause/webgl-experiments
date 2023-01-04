@@ -409,42 +409,33 @@ const renderExperiment = (
     // Map from the local model space to the world space (i.e. "place" the model in the world)
     return m4.multiplyPiped(
       m4.scaling([0.3, 0.3, 0.3]),
-      m4.rotationX(angleX),
-      m4.rotationY(angleY),
-      m4.rotationZ(angleZ),
+      // m4.rotationX(angleX),
+      // m4.rotationY(angleY),
+      // m4.rotationZ(angleZ),
       m4.translation(position),
     );
   };
   
   const worldToCamera = () => {
-    return m4.identity();
+    // return m4.identity();
     
     // Side view of the spinning cubes
-    const nearCubes = 30;
-    const farCube = 31;
+    const nearCubes = 5;
+    const farCube = 6;
     const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
     return m4.multiplyPiped(
       m4.translation([0, 0, distanceToObject]),
-      m4.rotationY(0.4 * Math.PI),
-      m4.rotationX(0.2 * Math.PI),
+      m4.rotationY((timing.time / 2000) * Math.PI),
+      // m4.rotationX(0.2 * Math.PI),
       m4.translation([0, 0, -distanceToObject]),
     );
   };
   
   const cameraToClip = () => {
-    // const fov = 1;
-    // const aspect = canvas.clientWidth / canvas.clientHeight;
-    // const near = 1;
-    // const far = 2000;
-    //const perspectiveTransform = m4.perspective(fov, aspect, near, far);
-    //const viewportTransform: Matrix4 = m4.scaling([canvas.height / canvas.width, 1, 1]); // Correct for aspect ratio
-    //return perspectiveTransform;
-    
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    const fov = 1 * (0.5 * Math.PI); // Vertical field of view (in radians)
-    const near = -1.5;
+    const fov = 0.3 * (0.5 * Math.PI); // Vertical field of view (in radians)
+    const near = -1;
     const far = -1000;
-    //const projection = m4.orthographicProjection(fov, aspect, near, far);
     const projection = m4.perspectiveProjection(fov, aspect, near, far);
     
     // Note: we use a right-handed coordinate system (positive z-axis towards the viewer), but OpenGL clip space is a
@@ -453,15 +444,19 @@ const renderExperiment = (
   };
   
   const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -30]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -30]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -30]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -200]), worldToClip)); // Further back along Z
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -5]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -5]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -5]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -6]), worldToClip)); // Further back along Z
   
-  // const T = m4.multiplyPiped(localToWorld([0, 0, -80]), worldToClip);
+  // const x: Vector3 = [1, 1, 1]; // A vector in local space
+  // const p: Vector3 = [0, 0, -30]; // The position in world space
+  // const T = m4.multiplyPiped(localToWorld(p), worldToClip);
   // console.log(m4.print(T));
-  // console.log(m4.multiplyVector(T, [1, 1, 30, 1]));
-  // console.log(-60, m4.multiplyVector(m4.multiplyPiped(localToWorld([0, 0, -60]), worldToClip), [0, 0, 0, 1]));
+  // console.log('local', x);
+  // console.log('world', m4.multiplyVector(localToWorld(p), [...x, 1], false));
+  // console.log('clip (1)', m4.multiplyVector(T, [...x, 1], false));
+  // console.log('clip (2)', m4.multiplyVector(T, [...x, 1], true));
 };
 
 export const Experiment7 = () => {

@@ -408,9 +408,9 @@ const renderExperiment = (
     // Map from the local model space to the world space (i.e. "place" the model in the world)
     return m4.multiplyPiped(
       m4.scaling([0.3, 0.3, 0.3]),
-      m4.rotationX(angleX),
-      m4.rotationY(angleY),
-      m4.rotationZ(angleZ),
+      // m4.rotationX(angleX),
+      // m4.rotationY(angleY),
+      // m4.rotationZ(angleZ),
       m4.translation(position),
     );
   };
@@ -422,8 +422,9 @@ const renderExperiment = (
     const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
     return m4.multiplyPiped(
       m4.translation([0, 0, distanceToObject]),
-      m4.rotationY(0.4 * Math.PI),
-      m4.rotationX(0.2 * Math.PI),
+      // m4.rotationY(0.4 * Math.PI),
+      // m4.rotationX(0.2 * Math.PI),
+      m4.rotationY((timing.time / 2000) * Math.PI),
       m4.translation([0, 0, -distanceToObject]),
     );
   };

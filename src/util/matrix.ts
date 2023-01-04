@@ -79,13 +79,21 @@ export const m4 = {
   },
   // Multiplication of a matrix and a 3D vector in homogeneous coordinates. Will return another `Vector4` in
   // homogeneous coordinates, dividing by the `w` component (perspective divide) if necessary.
-  multiplyVector(m: Matrix4, v: Vector4): Vector4 {
+  multiplyVector(m: Matrix4, v: Vector4, perspectiveDivide = true): Vector4 {
     const product = v4.zero();
     for (const i in v) {
       product[i] = v4.dot(m[i], v);
     }
-    // Divide by the `w` component to get a normalized vector in homogeneous coordinates (i.e. w = 1)
-    return v4.scale(1 / product[3], product);
+    
+    const w = product[3];
+    if (!perspectiveDivide || w === 1) {
+      return product;
+    } else {
+      // Divide by the `w` component to get a normalized vector in homogeneous coordinates (i.e. w = 1)
+      // Note: `w` could be zero here, in which case the result would be (+/-)Infinity/NaN (depending on the numerator)
+      // Up to the consumer to prevent `w` from being 0, if `perspectiveDivide` is enabled
+      return v4.scale(1 / w, product);
+    }
   },
   
   //
@@ -160,7 +168,7 @@ export const m4 = {
     
     // Scaling to (-1, 1) clip space range (normalized device coordinates)
     const scaling = m4.scaling([
-      1 / (w / 2), // Scale by the inverse of half the frustum width (equivalently, can simplify this to `2/w`)
+      1 / (w / 2), // Scale (inversed) by half the frustum width (equivalently, can simplify this to `2/w`)
       1 / (h / 2),
       1 / (d / 2),
     ]);
@@ -178,46 +186,52 @@ export const m4 = {
   },
   
   // Generate a perspective projection matrix
-  // `fov` is the vertical field of view angle, in radians
-  perspectiveProjection(fov: number, aspect: number, near: number, far: number): Matrix4 {
-    // Ref: https://webgl2fundamentals.org/webgl/webgl-3d-perspective-matrix.html
+  // - `fov` is the vertical field of view angle, in radians
+  // - `aspect` is the viewport width/height ratio
+  // - `nearZ` is the Z-coordinate of the near clip plane
+  // - `farZ` is the Z-coordinate of the far clip plane
+  perspectiveProjection(fov: number, aspect: number, nearZ: number, farZ: number): Matrix4 {
+    const theta = fov / 2; // Viewing angle (relative to the Z-axis)
     
-    // const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
-    // const rangeInv = 1.0 / (near - far);
-    // 
-    // return m4.transpose([
-    //   [f / aspect, 0, 0, 0],
-    //   [0, f, 0, 0],
-    //   [0, 0, (near + far) * rangeInv, -1],
-    //   [0, 0, near * far * rangeInv * 2, 0],
-    // ]);
-    // return [
-    //   [f / aspect, 0, 0, 0],
-    //   [0, f, 0, 0],
-    //   [0, 0, (near + far) * rangeInv, near * far * rangeInv * 2],
-    //   [0, 0, -1, 0],
-    // ];
+    /*
+    // Below is the "long" way to calculate the matrix. However, this seems to accumulate some numerical
+    // errors causing the result to be slightly off (in addition to being simply inefficient).
     
-    const proj = m4.orthographicProjection(fov, aspect, near, far);
-    const pers = m4.identity();
-    pers[3] = [0, 0, 1, 0];
-    return m4.multiplyPiped(proj, pers);
+    // Calculate the top-right corner of the viewport on the near clip plane
+    const viewY = Math.tan(theta) * nearZ;
+    const viewX = viewY * aspect; // X coordinate is fixed through the aspect ratio
     
-    const w = Math.abs(right - left); // Frustum width
-    const h = Math.abs(top - bottom); // Frustum height
-    const d = Math.abs(far - near); // Frustum depth
-    
-    const translation = m4.translation([
-      -1 * (left + right) / 2, // `(left + right) / 2` is the horizontal midpoint of the frustum
-      -1 * (bottom + top) / 2,
-      -1 * (near + far) / 2,
-    ]);
-    
-    return [
-      [1.0, 0.0, 0.0, 0.0],
-      [0.0, 1.0, 0.0, 0.0],
+    // Multiply (X, Y) by nearZ/z to project these onto the image plane
+    const imageProjection: Matrix4 = [
+      [nearZ, 0.0, 0.0, 0.0], // Scale by the focal length
+      [0.0, nearZ, 0.0, 0.0], // ,,
       [0.0, 0.0, 1.0, 0.0],
-      [0.0, 0.0, 0.0, 1.0],
+      [0.0, 0.0, -1.0, 0.0], // Divide by -z (negation because we're looking along the negative z-axis)
+    ];
+    
+    // Normalize (X, Y) so that the range (-1, -1) to (1, 1) corresponds to the frustum bounds
+    const normalizationXY = m4.scaling([1/viewX, 1/viewY, 1]);
+    
+    // Finally, we transform Z so that the range -1 to 1 fits within the frustum bounds
+    //const d = Math.abs(farZ - nearZ); // Frustum depth
+    const transformZ: Matrix4 = m4.multiplyPiped(
+      m4.translation([1, 1, farZ / (farZ - nearZ)]),
+      m4.scaling([1, 1, -1 * (farZ * nearZ) / (farZ - nearZ)]),
+    );
+    
+    return m4.multiplyPiped(imageProjection, normalizationXY, transformZ);
+    */
+    
+    const s = 1 / Math.tan(theta); // Common scaling factor for x/y
+    
+    // Source: https://www.youtube.com/watch?v=EqNcqBdrNyI
+    const nf = 1 / (nearZ - farZ);
+    return [
+      [s / aspect, 0.0, 0.0, 0.0],
+      [0.0, s, 0.0, 0.0],
+      [0.0, 0.0, farZ / (farZ - nearZ), -1 * (farZ * nearZ) / (farZ - nearZ)],
+      //[0.0, 0.0, (farZ + nearZ) * nf, 2 * farZ * nearZ * nf], // Version used by gl-matrix and twgl
+      [0.0, 0.0, -1.0, 0.0],
     ];
   },
 };

@@ -106,7 +106,7 @@ orthographic camera system:
         ⎢ 0   0   2/d 0⎥
         ⎣ 0   0   0   1⎦
   > putting it together, we get the transform P = ST (see [w/Orthographic_projection] for the details)
-  > note: we may also want to compensate for left-handed vs right-handed coordinate systems here
+  > note: we may also want to compensate for right-handed vs left-handed coordinate systems here
     > OpenGL clip space is a *left-handed coordinate system*, meaning the positive z-axis points away from the viewer
       > see: https://stackoverflow.com/questions/4124041/is-opengl-coordinate-system-left-handed-or-right-handed
     > usually however in math and world/local space, we want a right-handed coordinate system (+z towards the viewer)
@@ -119,7 +119,8 @@ https://en.wikipedia.org/wiki/Pinhole_camera_model
 https://en.wikipedia.org/wiki/Camera_matrix
 https://en.wikipedia.org/wiki/3D_projection#Mathematical_formula
 
-https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix.html
+- https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix.html
+- pikuma – https://www.youtube.com/watch?v=EqNcqBdrNyI
 
 resources:
   - Graphics in 5 min – Perspective Projections Part 2 https://www.youtube.com/watch?v=g7Pb8mrwcJ0
@@ -127,17 +128,17 @@ resources:
 perspective projection:
   > ref: [g5min] – Perspective Projections Part 2 https://www.youtube.com/watch?v=g7Pb8mrwcJ0
   > given a pinhole camera setup, with: [w/Pinhole_camera_model]
-    - left-handed coordinate system
+    - right-handed coordinate system (z-axis pointing towards the viewer)
     - an aperture at the origin, with the +z-axis (viewing direction or "optical axis") extending away from the camera
     - an image plane (screen) behind the aperture parallel to x/y ("principal plane") at distance `f` (focal length)
   > then, if we have a point `p` (px, py, pz) somewhere in the world, we can draw a *projection line* through the origin
     and onto the screen, landing on some point `q` (qx, qy) on the screen (we can ignore the z component of `q`)
   > visually: (here, looking along the x axis such that +x is towards the viewer)
        p = (px,py,pz)                      p = (px,py,pz)
-      │ ╲                                 │ ╲ q = (qx, qy)
-   py │   ╲                            py │qy│╲
-      │     ╲    f               ~        │  │f ╲
-      <────── • ──── Z                    <────── • Z
+      │ ╲     Y                           │ ╲ q = (qx, qy)
+   py │   ╲   ^                        py │qy│╲   Y
+      │     ╲ │  f               ~        │  │f ╲ ^
+      ─────── • ───> Z                    ─────── • ───> Z
          pz     ╲  │ qy                      pz
                   ╲│ q = (-qx, -qy)
     > on the right, we reflected the screen to the positive side of the z-axis, this helps remove the negative signs
@@ -146,4 +147,82 @@ perspective projection:
     > by similar triangles, we know that qy/f = py/pz, thus qy = f * py/pz = (f/pz) * py
   > doing it for the other component also, we get: q = (f/pz) * p (where `f/pz` is a scalar, and `p`/`q` vectors)
   > in other words, any vector can be projected by multiplying it by the scalar `f/z`, (`z` is the z-comp of the vector)
-    > often, `f` will be 1, in which case this is simply dividing by `z`
+  > since `pz` will be negative in our case, we actually need to multiply by `f/-z`
+
+perspective projection matrix:
+  > parameters: `fov` (vertical FoV in radians), `aspect` (width/height), `zNear`, `zFar`
+  > we can derive:
+    - `f = zNear` (focal length)
+    - `theta = fov / 2` (angle of viewing along the (+Y, -Z)-plane)
+    - `viewY = tan(theta) * zNear` (world-space Y-coord of the viewport, i.e. half the screen height)
+    - `viewX = viewY * aspect` (derive the X-coord through the aspect ratio)
+  > first, we want to project (X, Y) to the image plane: (these will still be in world space coordinates)
+    > to do so, we will scale both by `-f/z` (where `f` = `zNear`)
+    > for `f` we can just use a scaling matrix, but for `z` (dynamic) we need to use `w` coordinate division
+      P = ⎡f 0  0 0⎤ (scale X by the focal length)
+          ⎢0 f  0 0⎥ (scale Y by the focal length)
+          ⎢0 0  1 0⎥
+          ⎣0 0 -1 0⎦ (sets up the perspective divide: w = z, so that we end up dividing by the z component)
+  > next, we want to normalize (X, Y) so that the range (-1, -1) to (1, 1) corresponds to the frustum dimensions
+    Nxy = scaling(1/viewX, 1/viewY, 1)   (scaling matrix with the given diagonal)
+    > note: if we work out the composition `NxyP`, then:
+      - Y scaling: `(1 / viewY) * zNear` = `(1 / tan(theta) * zNear) * zNear` = `1 / tan(theta)`
+      - X scaling: `(1 / viewX) * zNear` = `(1 / tan(theta) * zNear * aspect) * zNear` = `1 / (tan(theta) * aspect)`
+      > the `zNear` cancels out
+      > factoring out `s` = `1 / tan(theta)`, we then get a scaling of (s / aspect, s)
+      > (in existing implementations, this factor `s` is often called `f`, but this is confusing with the focal length)
+  > finally, we need to transform the Z coordinate
+    > unlike in actual photography, in computer graphics we need to know the Z coordinate as well (for depth testing)
+    > thus instead of an image *plane*, we really have an image *volume*, corresponding to our frustum
+    > note that earlier, in the perspective divide, we also divided our z component by `w` (which is the original `z`)
+      > i.e. given `z` our input vector z component, we first transform `z` to `z'`, and then the result is `z'/z`
+      > we need to take this into account in our transformation (cannot just do what we did for the orthographic case)
+    > we normalize Z to fit within the frustum bounds (i.e. between the near/far clip planes) [...TODO...]
+
+projection transformation matrix:
+    ⎡s/aspect 0                     0                                    0⎤
+    ⎢       0 s                     0                                    0⎥
+    ⎢       0 0 farZ / (farZ - nearZ) -1 * (farZ * nearZ) / (farZ - nearZ)⎥
+    ⎣       0 0                    -1                                    0⎦
+    where s = 1 / Math.tan(fov / 2)
+  > z combined formula:
+    farZ / (farZ - nearZ) * z - (farZ * nearZ) / (farZ - nearZ)
+
+
+## Comparison with other projection matrices
+
+- pikuma: https://youtu.be/EqNcqBdrNyI?t=1242
+  > same as our result (and in fact ours was based on this one), although:
+    - he uses h/w for aspect ratio rather than w/h
+    - he uses 1 for `w` in the fourth row, whereas it seems we need -1 for OpenGL
+      > from the description:
+        "The matrix I'll derive is as used by left-handed coordinate systems like DirectX (OpenGL uses a right-handed
+        system)."
+
+
+- the gl-matrix-like implementations:
+  > based on vertical fov and aspect ratio
+  - https://gamedev.stackexchange.com/questions/120338/what-does-a-perspective-projection-matrix-look-like-in-opengl
+  - `gl-matrix` `perspectiveNO` [https://github.com/toji/gl-matrix/blob/master/src/mat4.js#L1539]
+    > matrix:
+      ⎡f/aspect 0                 0                   0⎤
+      ⎢       0 f                 0                   0⎥
+      ⎢       0 0 (far + near) * nf 2 * far * near * nf⎥
+      ⎣       0 0                -1                   0⎦
+      where f = 1.0 / Math.tan(fovy / 2); nf = 1 / (near - far)
+    > `(far + near) * nf` = `(near + far) / (near - far)`         (!= `farZ / (farZ - nearZ)`)
+    > `2 * far * near * nf` = `(2 * far * near) / (near - far)`   (!= `-1 * (farZ * nearZ) / (farZ - nearZ)`)
+    > combined: `((near + far) / (near - far)) * z + (2 * far * near) / (near - far)`
+    > based on some quick graphing between the two, the z formula here is different from ours
+      > however, plugging the above matrix into our code doesn't seem to work (produces z values outide [-1, 1] range)
+  - twgl `perspective` [https://github.com/greggman/twgl.js/blob/master/src/m4.js#L509]
+    > also used by https://webgl2fundamentals.org (same author)
+    > same as the gl-matrix version (with slight rewriting)
+
+- OpenGL `GL_PROJECTION` matrix:
+  > resources:
+    - https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix.html
+    - http://www.songho.ca/opengl/gl_projectionmatrix.html
+
+others:
+  - http://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/#the-projection-matrix
