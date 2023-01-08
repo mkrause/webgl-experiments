@@ -401,7 +401,7 @@ const renderExperiment = (
   webglResourceUtil.useResource(gl, app.resource);
   
   const localToWorld = (position: Vector3): Matrix4 => {
-    const dir = -1; // +1 for counterclockwise, -1 for clockwise
+    const dir = 1; // +1 for counterclockwise, -1 for clockwise
     const angleX = dir * timing.time / 2000;
     const angleY = dir * timing.time / 1000;
     const angleZ = dir * timing.time / 2000;
@@ -434,13 +434,9 @@ const renderExperiment = (
   const cameraToClip = () => {
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const fov = 0.3 * (0.5 * Math.PI); // Vertical field of view (in radians)
-    const near = -1;
-    const far = -1000;
-    const projection = m4.perspectiveProjection(fov, aspect, near, far);
-    
-    // Note: we use a right-handed coordinate system (positive z-axis towards the viewer), but OpenGL clip space is a
-    // left-handed system (z-axis away from the viewer), so we need to compensate by flipping the z-axis for clip space.
-    return m4.multiplyPiped(projection, m4.scaling([1, 1, -1]));
+    const near = 1;
+    const far = 1000;
+    return m4.perspectiveProjection(fov, aspect, near, far);
   };
   
   const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());

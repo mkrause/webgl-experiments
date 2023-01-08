@@ -16,6 +16,9 @@ export type Matrix4 = [
   [number, number, number, number],
 ];
 
+
+// Similar libraries:
+// https://github.com/greggman/twgl.js/blob/master/src/v3.js
 export const v4 = {
   zero(): Vector4 {
     return [0, 0, 0, 1];
@@ -27,6 +30,7 @@ export const v4 = {
     return v.map(x => x * s) as Vector4;
   },
 };
+
 
 export const m4 = {
   print(m: Matrix4) {
@@ -188,50 +192,24 @@ export const m4 = {
   // Generate a perspective projection matrix
   // - `fov` is the vertical field of view angle, in radians
   // - `aspect` is the viewport width/height ratio
-  // - `nearZ` is the Z-coordinate of the near clip plane
-  // - `farZ` is the Z-coordinate of the far clip plane
+  // - `nearZ` is the Z-coordinate of the near clip plane (should be passed as a positive number)
+  // - `farZ` is the Z-coordinate of the far clip plane (should be passed as a positive number)
   perspectiveProjection(fov: number, aspect: number, nearZ: number, farZ: number): Matrix4 {
-    const theta = fov / 2; // Viewing angle (relative to the Z-axis)
+    // For a full explanation of the math behind this perspective projection, see:
+    // - https://stackoverflow.com/questions/28286057/trying-to-understand-the-math-behind-the-perspective-matrix
+    // - https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix
     
-    /*
-    // Below is the "long" way to calculate the matrix. However, this seems to accumulate some numerical
-    // errors causing the result to be slightly off (in addition to being simply inefficient).
+    const theta = fov / 2; // Vertical viewing angle (relative to the Z-axis)
     
-    // Calculate the top-right corner of the viewport on the near clip plane
-    const viewY = Math.tan(theta) * nearZ;
-    const viewX = viewY * aspect; // X coordinate is fixed through the aspect ratio
+    // Trick: the following is equivalent to `1 / tan(theta)`, but avoids division by zero (see the StackOverflow)
+    const s = Math.tan(Math.PI * 0.5 - theta); // Usually called `f` (but confusing, `f` is also the focal length)
     
-    // Multiply (X, Y) by nearZ/z to project these onto the image plane
-    const imageProjection: Matrix4 = [
-      [nearZ, 0.0, 0.0, 0.0], // Scale by the focal length
-      [0.0, nearZ, 0.0, 0.0], // ,,
-      [0.0, 0.0, 1.0, 0.0],
-      [0.0, 0.0, -1.0, 0.0], // Divide by -z (negation because we're looking along the negative z-axis)
-    ];
-    
-    // Normalize (X, Y) so that the range (-1, -1) to (1, 1) corresponds to the frustum bounds
-    const normalizationXY = m4.scaling([1/viewX, 1/viewY, 1]);
-    
-    // Finally, we transform Z so that the range -1 to 1 fits within the frustum bounds
-    //const d = Math.abs(farZ - nearZ); // Frustum depth
-    const transformZ: Matrix4 = m4.multiplyPiped(
-      m4.translation([1, 1, farZ / (farZ - nearZ)]),
-      m4.scaling([1, 1, -1 * (farZ * nearZ) / (farZ - nearZ)]),
-    );
-    
-    return m4.multiplyPiped(imageProjection, normalizationXY, transformZ);
-    */
-    
-    const s = 1 / Math.tan(theta); // Common scaling factor for x/y
-    
-    // Source: https://www.youtube.com/watch?v=EqNcqBdrNyI
-    const nf = 1 / (nearZ - farZ);
+    const r = 1.0 / (nearZ - farZ); // Extract out common factor
     return [
-      [s / aspect, 0.0, 0.0, 0.0],
-      [0.0, s, 0.0, 0.0],
-      [0.0, 0.0, farZ / (farZ - nearZ), -1 * (farZ * nearZ) / (farZ - nearZ)],
-      //[0.0, 0.0, (farZ + nearZ) * nf, 2 * farZ * nearZ * nf], // Version used by gl-matrix and twgl
-      [0.0, 0.0, -1.0, 0.0],
+      [s / aspect, 0.0,                0.0,                  0.0],
+      [       0.0,   s,                0.0,                  0.0],
+      [       0.0, 0.0, (nearZ + farZ) * r, 2 * nearZ * farZ * r],
+      [       0.0, 0.0,               -1.0,                  0.0], // Perspective divide
     ];
   },
 };

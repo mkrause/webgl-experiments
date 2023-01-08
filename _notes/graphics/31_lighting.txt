@@ -1,7 +1,0 @@
-
-# Lighting
-
-https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL
-
-to cover:
-  - normal maps

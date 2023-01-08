@@ -1,6 +1,0 @@
-
-# Math (for computer graphics)
-
-resources:
-  - [1] Freya Holmér – Math for game devs
-  https://www.youtube.com/watch?v=fjOdtSu4Lm4&list=PLImQaTpSAdsArRFFj8bIfqMk2X7Vlf3XF
