@@ -17,8 +17,36 @@ export type Matrix4 = [
 ];
 
 
-// Similar libraries:
-// https://github.com/greggman/twgl.js/blob/master/src/v3.js
+export const v3 = {
+  origin(): Vector3 {
+    return [0, 0, 0];
+  },
+  scale(s: number, v: Vector3): Vector3 {
+    return v.map(x => x * s) as Vector3;
+  },
+  magnitude(v: Vector3): number {
+    return Math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2);
+  },
+  normalize(v: Vector3): Vector3 {
+    const magnitude = v3.magnitude(v);
+    return v3.scale(1 / magnitude, v);
+  },
+  add(v: Vector3, w: Vector3): Vector3 {
+    return v.map((vi, i) => vi + w[i]) as Vector3;
+  },
+  subtract(v: Vector3, w: Vector3): Vector3 {
+    return v.map((vi, i) => vi - w[i]) as Vector3;
+  },
+  dot(v: Vector3, w: Vector3): number {
+    return v.reduce((acc, vEntry, i) => acc + vEntry * w[i], 0);
+  },
+  cross(v: Vector3, w: Vector3): Vector3 {
+    const t1 = v[2] * w[0] - v[0] * w[2];
+    const t2 = v[0] * w[1] - v[1] * w[0];
+    return [v[1] * w[2] - v[2] * w[1], t1, t2];
+  },
+};
+
 export const v4 = {
   zero(): Vector4 {
     return [0, 0, 0, 1];
@@ -29,6 +57,9 @@ export const v4 = {
   scale(s: number, v: Vector4): Vector4 {
     return v.map(x => x * s) as Vector4;
   },
+  toVector3(v: Vector4): Vector3 {
+    return v.slice(0, 2) as Vector3;
+  }
 };
 
 
@@ -41,6 +72,7 @@ export const m4 = {
   ${JSON.stringify(m[3])}
 ]`;
   },
+  
   identity(): Matrix4 {
     return [
       [1.0, 0.0, 0.0, 0.0],
@@ -62,6 +94,70 @@ export const m4 = {
       }
     }
     return transposed;
+  },
+  
+  determinant(m: Matrix4): number {
+    // Adapted from: https://github.com/toji/gl-matrix/blob/master/src/mat4.js
+    const b0 = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+    const b1 = m[0][0] * m[1][2] - m[0][2] * m[1][0];
+    const b2 = m[0][1] * m[1][2] - m[0][2] * m[1][1];
+    const b3 = m[2][0] * m[3][1] - m[2][1] * m[3][0];
+    const b4 = m[2][0] * m[3][2] - m[2][2] * m[3][0];
+    const b5 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
+    const b6 = m[0][0] * b5 - m[0][1] * b4 + m[0][2] * b3;
+    const b7 = m[1][0] * b5 - m[1][1] * b4 + m[1][2] * b3;
+    const b8 = m[2][0] * b2 - m[2][1] * b1 + m[2][2] * b0;
+    const b9 = m[3][0] * b2 - m[3][1] * b1 + m[3][2] * b0;
+  
+    return m[1][3] * b6 - m[0][3] * b7 + m[3][3] * b8 - m[2][3] * b9;
+  },
+  
+  invert(m: Matrix4): Matrix4 {
+    // Adapted from: https://github.com/toji/gl-matrix/blob/master/src/mat4.js
+    const det = m4.determinant(m);
+    if (det === 0) { throw new Error(`Failed to invert the given matrix`); }
+    
+    const d = 1 / det;
+    
+    const b00 = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+    const b01 = m[0][0] * m[1][2] - m[0][2] * m[1][0];
+    const b02 = m[0][0] * m[1][3] - m[0][3] * m[1][0];
+    const b03 = m[0][1] * m[1][2] - m[0][2] * m[1][1];
+    const b04 = m[0][1] * m[1][3] - m[0][3] * m[1][1];
+    const b05 = m[0][2] * m[1][3] - m[0][3] * m[1][2];
+    const b06 = m[2][0] * m[3][1] - m[2][1] * m[3][0];
+    const b07 = m[2][0] * m[3][2] - m[2][2] * m[3][0];
+    const b08 = m[2][0] * m[3][3] - m[2][3] * m[3][0];
+    const b09 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
+    const b10 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
+    const b11 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
+    
+    return [
+      [
+        d * (m[1][1] * b11 - m[1][2] * b10 + m[1][3] * b09),
+        d * (m[0][2] * b10 - m[0][1] * b11 - m[0][3] * b09),
+        d * (m[3][1] * b05 - m[3][2] * b04 + m[3][3] * b03),
+        d * (m[2][2] * b04 - m[2][1] * b05 - m[2][3] * b03),
+      ],
+      [
+        d * (m[1][2] * b08 - m[1][0] * b11 - m[1][3] * b07),
+        d * (m[0][0] * b11 - m[0][2] * b08 + m[0][3] * b07),
+        d * (m[3][2] * b02 - m[3][0] * b05 - m[3][3] * b01),
+        d * (m[2][0] * b05 - m[2][2] * b02 + m[2][3] * b01),
+      ],
+      [
+        d * (m[1][0] * b10 - m[1][1] * b08 + m[1][3] * b06),
+        d * (m[0][1] * b08 - m[0][0] * b10 - m[0][3] * b06),
+        d * (m[3][0] * b04 - m[3][1] * b02 + m[3][3] * b00),
+        d * (m[2][1] * b02 - m[2][0] * b04 - m[2][3] * b00),
+      ],
+      [
+        d * (m[1][1] * b07 - m[1][0] * b09 - m[1][2] * b06),
+        d * (m[0][0] * b09 - m[0][1] * b07 + m[0][2] * b06),
+        d * (m[3][1] * b01 - m[3][0] * b03 - m[3][2] * b00),
+        d * (m[2][0] * b03 - m[2][1] * b01 + m[2][2] * b00),
+      ],
+    ];
   },
   
   multiply(m: Matrix4, n: Matrix4): Matrix4 {
@@ -210,6 +306,22 @@ export const m4 = {
       [       0.0,   s,                0.0,                  0.0],
       [       0.0, 0.0, (nearZ + farZ) * r, 2 * nearZ * farZ * r],
       [       0.0, 0.0,               -1.0,                  0.0], // Perspective divide
+    ];
+  },
+  
+  // Generate a camera transform to look at in the direction of the given `target`
+  lookAt(camera: Vector3, target: Vector3): Matrix4 {
+    const up: Vector3 = [0, 1, 0];
+    
+    const zAxis = v3.normalize(v3.subtract(camera, target));
+    const xAxis = v3.normalize(v3.cross(up, zAxis));
+    const yAxis = v3.normalize(v3.cross(zAxis, xAxis));
+    
+    return [
+      [xAxis[0], yAxis[0], zAxis[0], camera[0]],
+      [xAxis[1], yAxis[1], zAxis[1], camera[1]],
+      [xAxis[2], yAxis[2], zAxis[2], camera[2]],
+      [0, 0, 0, 1],
     ];
   },
 };

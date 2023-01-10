@@ -1,5 +1,5 @@
 
-import { type Vector3, type Matrix4, m4 } from '../util/matrix';
+import { type Vector3, type Matrix4, v3, v4, m4 } from '../util/matrix';
 
 import * as React from 'react';
 import { type UseAnimationFrameCallback, useAnimationFrame } from '../util/reactUtil';
@@ -180,11 +180,14 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       uniform mat4 transformation;
       in vec3 vertex_position;
       in vec4 vertex_color;
+      in vec3 vertex_normal;
       out vec4 color;
+      out vec3 normal;
       
       void main(void) {
         gl_Position = transformation * vec4(vertex_position.xyz, 1.0);
         color = vertex_color;
+        normal = vertex_normal;
       }
     `.trim(),
     fragmentShader: `
@@ -192,14 +195,17 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       precision highp float;
       
       in vec4 color;
+      in vec3 normal;
       out vec4 outColor;
       
       void main(void) {
-        outColor = color;
+        vec3 norm = normalize(normal);
+        outColor = vec4(norm / 2.0 + 0.5, 1.0);
       }
     `.trim(),
     buffers: {
       color: colors,
+      normal: Geometry.cube().normals,
     },
     uniforms: {
       transformation: { type: 'uniformMatrix4fv', data: m4.identity() },
@@ -207,6 +213,7 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
     attributes: {
       vertex_position: { type: 'vec3', source: { type: 'position' } },
       vertex_color: { type: 'vec4', source: { type: 'buffer', buffer: 'color' } },
+      vertex_normal: { type: 'vec3', source: { type: 'buffer', buffer: 'normal' } },
     },
   };
   
@@ -246,6 +253,7 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
   
   webglResourceUtil.useResource(gl, app.resource);
   
+  // Generate a world transform
   const localToWorld = (position: Vector3): Matrix4 => {
     const dir = 1; // +1 for counterclockwise, -1 for clockwise
     const angleX = dir * timing.time / 2000;
@@ -254,7 +262,7 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
     
     // Map from the local model space to the world space (i.e. "place" the model in the world)
     return m4.multiplyPiped(
-      m4.scaling([0.3, 0.3, 0.3]),
+      //m4.scaling([0.3, 0.3, 0.3]),
       // m4.rotationX(angleX),
       // m4.rotationY(angleY),
       // m4.rotationZ(angleZ),
@@ -262,18 +270,21 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
     );
   };
   
+  // Generate a camera transform
   const worldToCamera = () => {
-    // return m4.identity();
-    
     // Side view of the spinning cubes
-    const nearCubes = 5;
-    const farCube = 6;
+    const nearCubes = 15;
+    const farCube = 18;
     const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
+    
+    //const target = v4.toVector3(m4.multiplyVector(localToWorld([-0.6, 0.4, -5]), v4.zero()));
+    // return m4.invert(m4.lookAt([0, 0, 0], [-0.6, 0.4, -5]));
+    
     return m4.multiplyPiped(
-      m4.translation([0, 0, distanceToObject]),
-      m4.rotationY((timing.time / 2000) * Math.PI),
+      m4.translation([0, 0, distanceToObject]), // Translate to the center of the object
+      m4.rotationY((timing.time / 2000) * Math.PI), // Rotate around the object
       // m4.rotationX(0.2 * Math.PI),
-      m4.translation([0, 0, -distanceToObject]),
+      m4.translation([0, 0, -distanceToObject]), // Move backwards
     );
   };
   
@@ -286,10 +297,10 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
   };
   
   const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-0.6, 0.4, -5]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0.6, 0.4, -5]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -0.5, -5]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -6]), worldToClip)); // Further back along Z
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-1.8, 1.2, -15]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([1.8, 1.2, -15]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -1.5, -15]), worldToClip));
+  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -18]), worldToClip)); // Further back along Z
   
   // const x: Vector3 = [1, 1, 1]; // A vector in local space
   // const p: Vector3 = [0, 0, -30]; // The position in world space
