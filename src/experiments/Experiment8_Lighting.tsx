@@ -10,7 +10,8 @@ import * as Geometry from '../util/webgl/geometry/Geometry';
 
 
 /*
-Experiment 8
+Experiment 8: add lighting
+  - Add support for normal vectors
 */
 
 // ---
@@ -177,7 +178,10 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
     vertexShader: `
       #version 300 es
       
-      uniform mat4 transformation;
+      uniform mat4 transformLocalToClip;
+      uniform mat4 transformLocalToWorld;
+      uniform mat4 transformLocalToWorldInverseTransposed;
+      
       in vec3 vertex_position;
       in vec4 vertex_color;
       in vec3 vertex_normal;
@@ -185,22 +189,32 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       out vec3 normal;
       
       void main(void) {
-        gl_Position = transformation * vec4(vertex_position.xyz, 1.0);
+        transformLocalToWorld; // Unused
+        
+        gl_Position = transformLocalToClip * vec4(vertex_position.xyz, 1.0);
+        normal = mat3(transformLocalToWorldInverseTransposed) * vertex_normal;
         color = vertex_color;
-        normal = vertex_normal;
       }
     `.trim(),
     fragmentShader: `
       #version 300 es
       precision highp float;
       
-      in vec4 color;
+      // in vec4 color;
       in vec3 normal;
       out vec4 outColor;
       
       void main(void) {
         vec3 norm = normalize(normal);
-        outColor = vec4(norm / 2.0 + 0.5, 1.0);
+        //outColor = vec4(norm / 2.0 + 0.5, 1.0); // To test the normal through color output
+        
+        vec4 color = vec4(0.0, 0.8, 0.0, 1.0); // Green
+        
+        vec3 lightDirection = vec3(1.0, -1.0, -1.0); // Light coming from top-left corner (and from behind)
+        vec3 lightDirectionReversed = lightDirection * -1.0; // Reverse the light direction to point along the normal
+        float light = clamp(dot(norm, lightDirectionReversed), 0.0, 1.0);
+        
+        outColor = vec4(color.rgb * 0.5 + color.rgb * (light * 0.5), color.a);
       }
     `.trim(),
     buffers: {
@@ -208,7 +222,9 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
       normal: Geometry.cube().normals,
     },
     uniforms: {
-      transformation: { type: 'uniformMatrix4fv', data: m4.identity() },
+      transformLocalToWorld: { type: 'uniformMatrix4fv', data: m4.identity() },
+      transformLocalToWorldInverseTransposed: { type: 'uniformMatrix4fv', data: m4.identity() },
+      transformLocalToClip: { type: 'uniformMatrix4fv', data: m4.identity() },
     },
     attributes: {
       vertex_position: { type: 'vec3', source: { type: 'position' } },
@@ -224,9 +240,21 @@ const initExperiment = (canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): 
   };
 };
 
-const renderCube = (gl: WebGL2RenderingContext, cube: ResourceCompiled, transform: Matrix4): void => {
+type Transforms = {
+  transformLocalToWorld: Matrix4,
+  transformLocalToClip: Matrix4,
+};
+const renderCube = (gl: WebGL2RenderingContext, cube: ResourceCompiled, transforms: Transforms): void => {
   webglResourceUtil.useResource(gl, cube);
-  gl.uniformMatrix4fv(cube.uniformLocations.transformation, true, transform.flat());
+  gl.uniformMatrix4fv(cube.uniformLocations.transformLocalToWorld, true, transforms.transformLocalToWorld.flat());
+  // For normal scaling. See: https://webgl2fundamentals.org/webgl/lessons/webgl-3d-lighting-directional.html
+  gl.uniformMatrix4fv(
+    cube.uniformLocations.transformLocalToWorldInverseTransposed,
+    true,
+    m4.transpose(m4.invert(transforms.transformLocalToWorld)).flat(),
+  );
+  gl.uniformMatrix4fv(cube.uniformLocations.transformLocalToClip, true, transforms.transformLocalToClip.flat());
+  
   gl.drawElements(gl.TRIANGLES, cube.resource.mesh.indices.length, gl.UNSIGNED_SHORT, 0);
 };
 
@@ -262,19 +290,21 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
     
     // Map from the local model space to the world space (i.e. "place" the model in the world)
     return m4.multiplyPiped(
-      //m4.scaling([0.3, 0.3, 0.3]),
-      // m4.rotationX(angleX),
-      // m4.rotationY(angleY),
-      // m4.rotationZ(angleZ),
+      m4.scaling([0.3, 0.3, 0.3]),
+      m4.rotationX(angleX),
+      m4.rotationY(angleY),
+      m4.rotationZ(angleZ),
       m4.translation(position),
     );
   };
   
   // Generate a camera transform
   const worldToCamera = () => {
+    return m4.identity();
+    
     // Side view of the spinning cubes
-    const nearCubes = 15;
-    const farCube = 18;
+    const nearCubes = 5;
+    const farCube = 6;
     const distanceToObject = nearCubes + (farCube - nearCubes) / 2;
     
     //const target = v4.toVector3(m4.multiplyVector(localToWorld([-0.6, 0.4, -5]), v4.zero()));
@@ -297,10 +327,16 @@ const renderExperiment = (gl: WebGL2RenderingContext, app: AppContext, timing: T
   };
   
   const worldToClip = m4.multiplyPiped(worldToCamera(), cameraToClip());
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([-1.8, 1.2, -15]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([1.8, 1.2, -15]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, -1.5, -15]), worldToClip));
-  renderCube(gl, cubeResource, m4.multiplyPiped(localToWorld([0, 0, -18]), worldToClip)); // Further back along Z
+  const tf = (transformLocalToWorld: Matrix4): Transforms => {
+    return {
+      transformLocalToWorld,
+      transformLocalToClip: m4.multiplyPiped(transformLocalToWorld, worldToClip),
+    };
+  };
+  renderCube(gl, cubeResource, tf(localToWorld([-0.6, 0.4, -5])));
+  renderCube(gl, cubeResource, tf(localToWorld([0.6, 0.4, -5])));
+  renderCube(gl, cubeResource, tf(localToWorld([0, -0.5, -5])));
+  renderCube(gl, cubeResource, tf(localToWorld([0, 0, -6]))); // Further back along Z
   
   // const x: Vector3 = [1, 1, 1]; // A vector in local space
   // const p: Vector3 = [0, 0, -30]; // The position in world space

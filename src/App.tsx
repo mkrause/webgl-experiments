@@ -9,7 +9,7 @@ import { Experiment4 } from './experiments/Experiment4_Animation';
 import { Experiment5 } from './experiments/Experiment5_Declarative';
 import { Experiment6 } from './experiments/Experiment6_Orthographic';
 import { Experiment7 } from './experiments/Experiment7_Perspective';
-import { Experiment8 } from './experiments/Experiment8';
+import { Experiment8 } from './experiments/Experiment8_Lighting';
 
 import './App.css';
 
